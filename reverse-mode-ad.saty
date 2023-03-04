@@ -1,0 +1,95 @@
+@require: class-slydifi/theme/arctic
+@require: bibyfi/bibyfi
+@require: bibyfi/bibyfi-IEEETran
+@require: azmath/azmath
+@require: matrix/matrix
+@require: colorbox/colorbox
+@require: ncsq/ncsq
+
+@import: presets
+@import: theorems
+@import: mymath
+
+open SlydifiOverlay
+open FigBox
+open MyMath
+
+in document '<
+  +set-config(slydifi-cfg);
+  +make-title(|
+    title = {|Reverse-Mode 自動微分を理解する|};
+    author = {|Hiromi ISHII|};
+    date = {|2023-03-15|Tsukuba Computer Mathematics Seminar 2023|};
+  |);
+
+  +section{|Forward-Mode と Reverse-Mode 自動微分|}<
+    +frame{自動微分とは？}<
+      +listing{
+        * \emph{自動微分}：与えられた関数の値とその微分係数を，合成関数の微分公式（\emph{連鎖律}）を使って効率的・厳密に計算する方法
+        * 関連するが異なる計算方法：
+          ** \emph{記号微分}：数式を記号的な構文木で表現し，微分法則に従い記号的に処理．
+            *** 厳密だが項数が組合せ爆発して非効率になりがち．
+          ** \emph{数値微分}：極限 ${\lim_{\Delta x \to 0} \frac{f(x + \Delta x) - f(x)}{\Delta x}}の${\Delta x}を微小数で置き換えて近似．
+            *** あくまで近似．${\Delta t}をどう近似するかで振る舞いが変わってくる．
+      }
+    >
+
+    +frame?:(2){連鎖律}<
+      +listing{
+        * 皆さんお馴染の基本公式
+          \gather?:(AZMathEquation.notag)(${
+          | \NCSq.cd-m!(open NCSq in [
+              [object ${\R^n}
+                ; arrow ?:${f} right
+                ; object ${\R^k}
+                ; arrow ?:${g} right
+                ; object ${\R^m}
+              ];
+          ])
+          | \dd{}{\bm{x}}(g \circ f) = \dd{g}{f} \dd{f}{\bm{x}}
+          |});
+        * 統一性のため${\bm{u}_0 = \bm{x}, \bm{u}_1 = f(\bm{u}_0), \bm{u}_2 = g(\bm{u}_1) = g(f(\bm{u}_0))}として並び換えれば，
+          \gather?:(AZMathEquation.notag)(${
+          | \NCSq.cd-m!(open NCSq in [[
+              object ${\R^0};
+              arrow ?:${\bm{u}_0} right;
+              object ${\R^n};
+              arrow ?:${\bm{u}_1} right;
+              object ${\R^k};
+              arrow ?:${\bm{u}_2} right;
+              object ${\R^m};
+            ]])
+          | \dd{\bm{u}_2}{\bm{u}_0}
+            = \dd{\bm{u}_1}{\bm{u}_0} \dd{\bm{u}_2}{\bm{u}_1} 
+          |});
+      }
+    >
+
+    +frame?:(2){連鎖律（多変数）}<
+      +gather?:(AZMathEquation.notag)(${
+      | \NCSq.cd-m!(open NCSq in [[
+          object ${\R^0};
+          arrow ?:${\bm{u}_0} right;
+          object ${\R^{n_0}};
+          arrow ?:${\bm{u}_1} right;
+          object ${\cdots};
+          arrow ?:${\bm{u}_{N-1}} right;
+          object ${\R^{n_{N-1}}};
+          arrow ?:${\bm{u}_{N}} right;
+          object ${\R^{n_{N}}};
+        ]])
+      | \dd{\u_N}{\u_0}
+        = \mphantom!(from 2){\dd{\u_0}{\u_0}}
+          \dd{\u_1}{\u_0}
+          \dd{\u_2}{\u_1}
+          \cdots
+          \dd{\u_{N-1}}{\u_{N-2}}
+          \dd{\u_{N}}{\u_{N-1}}
+          \mphantom!(from 2){\dd{\u_N}{\u_N}}
+      |});
+    >
+  >
+
+  +section{|Reverse-Mode 自動微分いろいろ|}<
+  >
+>
