@@ -5,6 +5,8 @@
 @require: matrix/matrix
 @require: colorbox/colorbox
 @require: ncsq/ncsq
+@require: arrows/arrows
+@require: arrows/commands
 
 @import: presets
 @import: theorems
@@ -12,6 +14,7 @@
 
 open SlydifiOverlay
 open FigBox
+open ArrowCommands
 open MyMath
 
 in document '<
@@ -65,28 +68,43 @@ in document '<
       }
     >
 
-    +frame?:(2){連鎖律（多変数）}<
+    +frame?:(4){連鎖律（多変数）}<
+      +p{
+        多変数も同様
+      }
+      +NCSq.cd(open NCSq in [[
+        object ${\R^0};
+        arrow ?:${\bm{u}_0} right;
+        object ${\R^{n_0}};
+        arrow ?:${\bm{u}_1} right;
+        object ${\cdots};
+        arrow ?:${\bm{u}_{N-1}} right;
+        object ${\R^{n_{N-1}}};
+        arrow ?:${\bm{u}_{N}} right;
+        object ${\R^{n_{N}}};
+      ]]);
       +gather?:(AZMathEquation.notag)(${
-      | \NCSq.cd-m!(open NCSq in [[
-          object ${\R^0};
-          arrow ?:${\bm{u}_0} right;
-          object ${\R^{n_0}};
-          arrow ?:${\bm{u}_1} right;
-          object ${\cdots};
-          arrow ?:${\bm{u}_{N-1}} right;
-          object ${\R^{n_{N-1}}};
-          arrow ?:${\bm{u}_{N}} right;
-          object ${\R^{n_{N}}};
-        ]])
-      | \dd{\u_N}{\u_0}
-        = \mphantom!(from 2){\dd{\u_0}{\u_0}}
-          \dd{\u_1}{\u_0}
-          \dd{\u_2}{\u_1}
-          \cdots
-          \dd{\u_{N-1}}{\u_{N-2}}
-          \dd{\u_{N}}{\u_{N-1}}
-          \mphantom!(from 2){\dd{\u_N}{\u_N}}
+          | \dd{\u_N}{\u_0}
+           = \mphantom!(from 2){\dd{\u_0}{\u_0}}
+              \dd{\u_1}{\u_0}
+              \dd{\u_2}{\u_1}
+              \cdots
+              \dd{\u_{N-1}}{\u_{N-2}}
+              \dd{\u_{N}}{\u_{N-1}}
+              \mphantom!(from 2){\dd{\u_N}{\u_N}}
+          | \mphantom!(from 3){\math-skip!(150pt) \draw?:!(0.25)?:!(15.5)!(
+              Arrow.solid(|line-width = 0.25;head-size=0.5;|)
+            ) \text!{Forward}} 
+          | \mphantom!(from 4){\math-skip!(150pt) \draw?:!(0.25)?:!(15.5)!(
+              Arrow.invert (Arrow.solid(|line-width = 0.25;head-size=0.5;|))
+            ) \text!{Reverse}}
       |});
+      +p?:(from 3){
+        \phantom(from 3){これを\emph{前から}計算するのが\emph{Forward-Mode}自動微分}
+      }
+      +p?:(from 4){
+        \phantom(from 4){これを\emph{後から}計算するのが\emph{Reverse-Mode}自動微分}
+      }
     >
   >
 
