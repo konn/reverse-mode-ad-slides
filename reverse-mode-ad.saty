@@ -29,6 +29,7 @@ in document '<
     +frame{自動微分とは？}<
       +listing{
         * \emph{自動微分}：与えられた関数の値とその微分係数を，合成関数の微分公式（\emph{連鎖律}）を使って効率的・厳密に計算する方法
+          ** 関数の値を順に計算しながら、連鎖律を使って微分係数も計算する
         * 関連するが異なる計算方法：
           ** \emph{記号微分}：数式を記号的な構文木で表現し，微分法則に従い記号的に処理．
             *** 厳密だが項数が組合せ爆発して非効率になりがち．
@@ -54,49 +55,49 @@ in document '<
         * 統一性のため${\bm{u}_0 = \bm{x}, \bm{u}_1 = f(\bm{u}_0), \bm{u}_2 = g(\bm{u}_1) = g(f(\bm{u}_0))}として並び換えれば，
           \gather?:(AZMathEquation.notag)(${
           | \NCSq.cd-m!(open NCSq in [[
-              object ${\R^0};
-              arrow ?:${\bm{u}_0} right;
-              object ${\R^n};
-              arrow ?:${\bm{u}_1} right;
-              object ${\R^k};
-              arrow ?:${\bm{u}_2} right;
               object ${\R^m};
+              arrow ?*?:${\bm{u}_2} left;
+              object ${\R^k};
+              arrow ?*?:${\bm{u}_1} left;
+              object ${\R^n};
+              arrow ?*?:${\bm{u}_0} left;
+              object ${\R^0};
             ]])
           | \dd{\bm{u}_2}{\bm{u}_0}
-            = \dd{\bm{u}_1}{\bm{u}_0} \dd{\bm{u}_2}{\bm{u}_1} 
+            = \dd{\bm{u}_2}{\bm{u}_1} \dd{\bm{u}_1}{\bm{u}_0}
           |});
       }
     >
 
     +frame?:(4){連鎖律（多変数）}<
       +p{
-        多変数も同様
+        多変数も同様（但し、各${\ipp{\bm{u}_i}{\bm{u}_j}}はヤコビ行列だと思うこと）
       }
       +NCSq.cd(open NCSq in [[
-        object ${\R^0};
-        arrow ?:${\bm{u}_0} right;
-        object ${\R^{n_0}};
-        arrow ?:${\bm{u}_1} right;
-        object ${\cdots};
-        arrow ?:${\bm{u}_{N-1}} right;
-        object ${\R^{n_{N-1}}};
-        arrow ?:${\bm{u}_{N}} right;
         object ${\R^{n_{N}}};
+        arrow ?*?:${\bm{u}_{N}} left;
+        object ${\R^{n_{N-1}}};
+        arrow ?*?:${\bm{u}_{N-1}} left;
+        object ${\cdots};
+        arrow ?*?:${\bm{u}_1} left;
+        object ${\R^{n_0}};
+        arrow ?*?:${\bm{u}_0} left;
+        object ${\R^0};
       ]]);
       +gather?:(AZMathEquation.notag)(${
-          | \dd{\u_N}{\u_0}
-           = \mphantom!(from 2){\dd{\u_0}{\u_0}}
-              \dd{\u_1}{\u_0}
-              \dd{\u_2}{\u_1}
+          | \pp{\u_N}{\u_0}
+            = \mphantom!(from 2){\pp{\u_N}{\u_N}}
+              \pp{\u_{N}}{\u_{N-1}}
+              \pp{\u_{N-1}}{\u_{N-2}}
               \cdots
-              \dd{\u_{N-1}}{\u_{N-2}}
-              \dd{\u_{N}}{\u_{N-1}}
-              \mphantom!(from 2){\dd{\u_N}{\u_N}}
-          | \mphantom!(from 3){\math-skip!(150pt) \draw?:!(0.25)?:!(15.5)!(
-              Arrow.solid(|line-width = 0.25;head-size=0.5;|)
-            ) \text!{Forward}} 
-          | \mphantom!(from 4){\math-skip!(150pt) \draw?:!(0.25)?:!(15.5)!(
+              \pp{\u_2}{\u_1}
+              \pp{\u_1}{\u_0}
+              \mphantom!(from 2){\pp{\u_0}{\u_0}}
+          | \mphantom!(from 3){\math-skip!(145pt) \draw?:!(0.25)?:!(15.5)!(
               Arrow.invert (Arrow.solid(|line-width = 0.25;head-size=0.5;|))
+            ) \text!{Forward}} 
+          | \mphantom!(from 4){\math-skip!(145pt) \draw?:!(0.25)?:!(15.5)!(
+              Arrow.solid(|line-width = 0.25;head-size=0.5;|)
             ) \text!{Reverse}}
       |});
       +p?:(from 3){
@@ -106,8 +107,87 @@ in document '<
         \phantom(from 4){これを\emph{後から}計算するのが\emph{Reverse-Mode}自動微分}
       }
     >
+
+    +frame{Foward Mode 自動微分}<
+      +listing{
+        * \emph{Dual Number} ${\R[d]/(d^2)} を使って計算できる
+          ** ${x + y d} の ${y} が一次微分係数を覚える役割を果す（${f(x) + f'(x) d} と思う）
+        * 代数演算はそのまま延長、（区分的に）滑らかな関数についてもWeil環の標準的な${C^\infty}-環構造が入る
+          ** 難しく聞こえるが、以下のような感じ：
+            \gather?:(AZMathEquation.notag)(${
+                |\sin(x + yd) = \sin(x) + y\cos(x) d,
+                |\cos(x + yd) = \cos(x) - y\sin(x) d,
+                |e^{(x + y d)} = e^x + y e^x d
+                |});
+      }
+    >
+
+    +frame{Forward Mode 計算例}<
+      +listing{
+        * 次で定まる関数${f: \R \to \R^3}の${x}に関する微分を求めてみよう：
+          \eqn?:(AZMathEquation.notag)(${
+            f(x) = (\sin(x^ 2 + 1), e^{x^2}, x^3 e^{-x})
+          });
+        * 入口は ${x + (\mathrm{d}x/\mathrm{d}x)d = x + d}を入れて${f(x + d)}を評価してみる：
+          \alignat?:(AZMathEquation.notag)(1)(${
+          || f(x + d)
+          ||= (\sin((x + d)^ 2 + 1), e^{(x + d)^2}, (x + d)^3 e^{-(x+d)})
+          ||= (\sin(x^ 2 + 2xd + 1), e^{x^2 + 2xd}, (x^3 + 3 x^2 d) (e^{-x} - e^{-x}d))
+          ||= (\sin(x^ 2 + 1) + 2x\cos(x^ 2 + 1)d, e^{x^2} + 2xe^{x^2}d, (x^3 + 3 x^2 d) (e^{-x} - e^{-x}d))
+          ||= (\sin(x^ 2 + 1), e^{x^2}, x^3 e^{x-x})
+            + \muline{(2x\cos(x^ 2 + 1), 2xe^{x^2}, -x^3 e^{-x} + 3 x^2 e^{-x})}d
+          |});
+      }
+    >
+
+    +frame{Forward-Mode だけでいいのでは？}<
+      +listing{
+        * 入力が一変数、出力が多変数の場合はForward-Mode で十分効率的
+        * しかし、機械学習のように${f: \R^N \to \R}で${N \gg 0}の場合、Forward-Mode では効率がわるすぎる！
+          \enumerate{
+            * 素朴にやると、${\R[d]^N}を用意して、${i < N}ごとに${(0, \ldots, 0, x + d_i, 0, \ldots)}みたいなのを何回も渡すことになる
+            * これを組にして ${(\R[d]^N)^N} について一挙に計算すると one-pass
+            * しかしいずれにせよ変数の数について自乗のオーダーがかかってしまい非効率！
+          }
+        * ${\idd{\bm{x}}{\bm{x}} = \idd{\bm{u}_0}{\bm{u}_0}}ではなく${\idd{\bm{u}_N}{\bm{u}_N}}の側から辿ったらどうか？
+          ** これが \emph{Reverse-Mode} 自動微分！
+      }
+    >
   >
 
   +section{|Reverse-Mode 自動微分いろいろ|}<
+    +frame{Reverse-Mode 自動微分}<
+      +listing{
+        * Reverse-Mode の概念図はこうだった
+          \gather?:(AZMathEquation.notag)(${
+          | \NCSq.cd-m!(open NCSq in [[
+              object ${\R^{n_{N}}};
+              arrow ?*?:${\bm{u}_{N}} left;
+              object ${\R^{n_{N-1}}};
+              arrow ?*?:${\bm{u}_{N-1}} left;
+              object ${\cdots};
+              arrow ?*?:${\bm{u}_1} left;
+              object ${\R^{n_0}};
+              arrow ?*?:${\bm{u}_0} left;
+              object ${\R^0};
+            ]])
+          | \dd{\u_N}{\u_0}
+          =   \pp{\u_N}{\u_N}
+              \pp{\u_{N}}{\u_{N-1}}
+              \pp{\u_{N-1}}{\u_{N-2}}
+              \cdots
+              \pp{\u_2}{\u_1}
+              \pp{\u_1}{\u_0}
+              \pp{\u_0}{\u_0}
+          | \math-skip!(145pt) \draw?:!(0.25)?:!(15.5)!(
+              Arrow.solid(|line-width = 0.25;head-size=0.5;|)
+            ) \text!{Reverse}
+          |});
+        * 問題：計算の\emph{入出力と逆順}に辿る必要がある！
+          ** 微分係数の計算には\emph{関数の値そのもの}が必要、\emph{往復}する必要がある
+            *** 機械学習で\emph{誤差逆伝播法}(\emph{back propagation})と呼ばれるもの
+          ** これを実現するためにいくつかやり方が知られている
+      }
+    >
   >
 >
