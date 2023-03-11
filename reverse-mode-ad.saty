@@ -16,12 +16,14 @@
 @import: presets
 @import: theorems
 @import: mymath
+@import: delcont
 
 open LatexCmds
 open SlydifiOverlay
 open FigBox
 open ArrowCommands
 open MyMath
+open DelCont
 
 let-inline ctx \gbox ?:w x  = 
   let padding = match w with
@@ -206,7 +208,7 @@ in document '<
     +frame{計算のグラフを覚えておく}<
       +listing{
         * Wengert Tapeなどと呼ばれる手法も同梱
-        * 以下の説明は\cite[`岡谷:2022`];を参考にした。
+        * 以下の説明は\cite[`岡谷:2022`];を参考にした．
 
       }
     >
@@ -215,35 +217,92 @@ in document '<
       +listing{
         * \emph{継続}：プログラミング言語理論の概念である点からみた\emph{続きの計算}を表す
         * \emph{限定継続}：ある点から特定の点までの\emph{続きの計算}を表す
-          ** ここでは\code(`shift`);/\code(`reset`);という一組のオペレータを使った定式化を使う
-          ** 例：\verb(`1 + reset [`);\gbox?:(5pt){\verb(`10 + `); \ovalbox?:(0pt)?:(3pt)?:(Color.gray 0.75)?:(bg-color){\verb(`shift {fun(`);\gbox{\texttt{k}}\verb(`) => `); \gbox{\texttt{k}}\texttt{(}\gbox{\texttt{k}}\verb(`(100)) + 1000}`);} \verb(` * 2}`);}\verb(` ]`);
-          *** \code(`shift`);から見て\code(`reset`);にブチ当るまでの続きの計算が \code(`k`); に束縛される．
-          *** 今回の場合は \code(`k = fun(n) => 10 + n * 2`);
-          *** 上式は \code(`1 + (fun(k) => k(k(100)) + 1000)(fun(n) => 10 + n * 2)`);と同値
-          *** 評価を進めれば，\code(`1 + ((10 + (10 + 100 * 2) * 2) + 1000) = 1431`);となる．
+          ** ここでは\delcont(`shift`);/\delcont(`reset`);という一組のオペレータを使った定式化を使う
+          ** 例：\verb(`1 + `); \reset(`k`)(fun k -> 
+              {10 + \shift(k){#k; (#k; 100) + 1000} \* 2}
+            );
+          *** \delcont(`shift`);から見て\delcont(`reset`);にブチ当るまでの続きの計算が \delcont(`k`); に束縛される．
+          *** 今回の場合は \delcont(`k = \n -> 10 + n * 2`);
+          *** 上式は \delcont(`1 + (\k -> k (k 100)+1000) (\n -> 10 + n*2)`);と同値
+          *** 評価を進めれば，\delcont(`1 + ((10+(10+100*2)*2)+1000) = 1431`);となる．
         * Wang et al.\cite[`Wang:2018`];では限定継続によるReverse-Mode自動微分を提案している
       }
     >
 
     +frame{限定継続によるReverse-Mode自動微分の実装}<
+      +p{
+        アイデア：順方向の計算結果から継続を逆に辿って微分係数を伝播させる
 
+          \makebox?:(Top)(11.5cm){
+            \code-printer?:(delcont)(
+```D x dx + D y dy = 
+  shift { fun k ->
+    z <- D (x + y) 0.0
+    k z
+    dx += z.d; dy += z.d
+  }
+```
+            );
+          }
+        \makebox?:(Top)(11.5cm){
+            \code-printer?:(delcont)(
+```D x dx * D y dy = 
+  shift { fun k ->
+    z <- D (x * y) 0.0
+    k z
+    dx += y * z.d;
+    dy += x * z.d
+  }
+```
+            );
+          }
+      }
+    >
+
+    +frame{限定継続による Reverse-Mode 自動微分の実装 II}<
+      +p{
+        微分係数を求めるところで \delcont(`reset`); を噛ませて出口の自明な微分係数を渡してやる。
+      }
+      +code-printer?:(delcont)(
+```grad f x = {
+  z <- D x 0.0
+  reset { w <- f(z); w.d = 1.0 }
+  return z.d
+}
+```
+      );
+      +listing{
+        * Multi-Prompt 限定継続を使えば変数の操作を減らせる
+          ** やってるひとが見当たらなかったので実験中（\cite[`石井:2023`];）      
+      }
     >
 
     +frame{正当性の証明}<
       +listing{
         * 「うまくいきそう」以上をどう証明するか？
-        * Krawiec et al. \cite[`Krawiec:2022`];ではプログラム変換として捉え，プログラミング言語意味論の手法を使ってその正当性を証明している．
+        * Krawiec et al.\cite[`Krawiec:2022`];ではプログラム変換として捉え，プログラミング言語意味論の手法を使ってその正当性を証明している．
           ** 実数値とその有限直和・直積を含む簡単な単純型付き${\lambda}-計算の体系を定義
-          ** Forward- および Reverse-Mode 自動微分をその体系に対するプログラム変換として定式化
+          ** 自動微分をその体系に対するプログラム変換として定式化
           ** 様々な計算体系の正規化定理の証明などに用いられる\emph{logical relation}の論法を応用して，その正当性を示している
-          ** 線型型などを使って空間・時間計算量の最適性も示している
+          ** 線型型などを使って空間・時間計算量の漸近最適性も示している
+        * 最終的にはよりWengert Tapeに近い手法になるが，よりシステマティックな方法で導出され，正当性がきちんと証明されている．
       }
     >
 
   >
   +section{|まとめ|}<
     +namedframe(`まとめ`){\select(from 2){Any Questions?}{まとめ}}<
-
+      +listing{
+        * \emph{自動微分}：合成関数の微分公式（\emph{連鎖律}）を使って，関数の値とその微分係数を効率的に求める手法
+          ** \emph{Forward-Mode}：入力の自明な微分係数を順方向に伝播させていって解く
+          ** \emph{Reverse-Mode}：出力の自明な微分係数を逆方向に伝播させていって解く
+        * ${(\text!{入力次元}) \ll (\text!{出力次元})} のときは Forward-Mode が効率的
+        * ${(\text!{入力次元}) \gg (\text!{出力次元})} のときは Reverse-Mode が効率的
+          ** 深層学習で\emph{誤差逆伝播法}と呼ばれているもの
+          ** 何万次元の入力から決まるスカラー値の損失関数を最適化するのに使われる
+        * Reverse-Mode は往復する必要があるので実装が複雑，複数の手法がある
+          ** 本講演では目についたものについて説明した
+      }
     >
     +frame-nofooter{参考文献}<
       +font-style[font-size 15pt]<

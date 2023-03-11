@@ -1,6 +1,7 @@
 @require: bibyfi/bibyfi
 @require: class-slydifi/theme/arctic
 @require: fss/fss
+@import: presets
 
 let bibs =
 [ (`Krawiec:2022`, 
@@ -55,5 +56,8 @@ let bibs =
     ; volume = None
     ; year = `2022`
     |)
+  )
+; ( `石井:2023`,
+    WildCard {Hiromi ISHII, \texttt{ad-delcont-primop}, URL: \href(`https://github.com/konn/ad-delcont-primop`){\texttt{https://github.com/konn/ad-delcont-primop}}, January 2023.}
   )
 ]

@@ -1,0 +1,62 @@
+@require: latexcmds/latexcmds
+@import: presets
+
+open LatexCmds
+module DelCont : sig
+  val delcont-syntax : CodePrinter.syntax
+  val delcont : CodePrinter.code-printer-config
+  direct \shift: [inline-text; inline-text] inline-cmd
+  direct \reset: [string; inline-text -> inline-text] inline-cmd
+  direct \delcont: [string] inline-cmd
+end = struct
+  let-inline ctx \kw str =
+    read-inline 
+      (ctx 
+        |> set-text-color (Color.of-css `#149f03`)
+        |> use-bold-code-font
+      )
+      (embed-string str)
+  let-inline ctx \gbox ?:w x  = 
+    let padding = match w with
+          | None -> 2pt
+          | Some(w) -> w
+      in read-inline ctx {\fbox?:(0pt)?:(padding)?:(bg-color)?:(gray){#x;}}
+  
+  let-inline ctx \shift k body = 
+    let shift = read-inline (ctx |> use-code-font) (embed-string `shift`) in
+    read-inline (ctx |> use-code-font) 
+      {\ovalbox
+        ?:(0pt)
+        ?:(2pt)
+        ?:(gray)?:(bg-color)
+        {\kw(`shift`); \verb(`(`); \kw(`\`);#k; \verb(` -> `); #body; \verb(`)`);}
+      }
+
+  let-inline ctx \reset kStr f =
+    let kVar = embed-string kStr in
+    let k = {\gbox?:(2pt){\texttt{#kVar;}}} in
+    let body = f k in
+    read-inline (ctx |> use-code-font) {\kw(`reset`);\verb(`(`);\gbox?:(5pt){#body;}\verb(`)`);}
+  
+  let-inline ctx \coded ?:w b = 
+    let w = match w with
+              | Some(w) ->  w
+              | None -> 5pt
+    in read-inline ctx {\ovalbox?:(0pt)?:(w)?:(bg-color)?:(code-bg){#b;}}
+  
+  let delcont-syntax = CodePrinter.make-syntax (| 
+          line-comment = syntax-rule-fun (fun _ -> None);
+          block-comment = syntax-rule-fun (fun _ -> None);
+          string = syntax-rule-fun (fun _ -> None);
+          keywords = 
+              [ `+=`; `<-`; `\`; `return`
+              ; `control`; `prompt`; `shift`; `reset`; `->`
+              ];
+          identifier = syntax-rule-line `[A-Za-z0-9]+`;
+          others = [];
+        |)
+  let delcont = default-code-printer
+        |> CodePrinter.set-syntax delcont-syntax
+  let-inline ctx \delcont x = 
+    read-inline ctx {\inline-code?:(delcont)(x); }
+end

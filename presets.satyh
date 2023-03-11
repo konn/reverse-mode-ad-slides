@@ -1,5 +1,9 @@
 @require: class-slydifi/theme/arctic
 @require: bibyfi/bibyfi-IEEETran
+@require: code-printer/code-printer
+@require: code-printer/code-syntax
+@require: code-printer/code-theme
+@require: code-printer/code-design
 
 let set-main-font name = fun ctx ->
   ctx |> set-font Kana (name, 1., 0.)
@@ -16,6 +20,18 @@ let set-font-metrics fsize ctx =
 let use-code-font = fun ctx ->
       ctx |> set-main-font `system:JetBrainsMono-Medium`
           |> set-font Latin (`system:JetBrainsMono-Medium`, 1., 0.)
+
+let use-code-font = fun ctx ->
+      ctx |> set-main-font `system:JetBrainsMono-Medium`
+          |> set-font Latin (`system:JetBrainsMono-Medium`, 1., 0.)
+
+let use-italic-code-font = fun ctx ->
+      ctx |> set-main-font `system:JetBrainsMono-MediumItalic`
+          |> set-font Latin (`system:JetBrainsMono-MediumItalic`, 1., 0.)
+
+let use-bold-code-font = fun ctx ->
+      ctx |> set-main-font `system:JetBrainsMono-Bold`
+          |> set-font Latin (`system:JetBrainsMono-Bold`, 1., 0.)
 
 let-inline ctx \texttt tt = read-inline (ctx |> use-code-font) tt
 
@@ -74,6 +90,37 @@ let bibyfi-theme = BiByFiIEEETran.theme (|
   |)
 
 let gray = Color.gray 0.75
+let code-bg = slydifi-cfg#color-bg-code
 
 let-inline ctx \verb s =
   read-inline  (ctx |> use-code-font) (embed-string s)
+
+let default-code-theme = 
+      CodePrinter.make-theme
+      (|backcolor = code-bg
+      ; basic = use-code-font
+      ; comment = fun ctx ->
+          ctx |> use-italic-code-font |> set-text-color (Color.of-css `#8389A3`)
+      ; string = fun ctx ->
+          ctx |> use-italic-code-font |> set-text-color (Color.of-css `#3F83A6`)
+      ; keyword = fun ctx -> ctx 
+          |> use-bold-code-font 
+          |> set-text-color (Color.of-css `#149f03`)
+      ; identifier = fun ctx ->
+          ctx |> use-code-font |> set-text-color (Color.of-css `#7759B4`)
+      ; others = []
+      |)
+
+let default-code-printer = CodePrinter.default 
+  |> CodePrinter.set-theme default-code-theme
+  |> CodePrinter.set-number-fun CodeDesign.number-fun-null
+
+let haskell = default-code-printer
+  |> CodePrinter.set-syntax CodeSyntax.haskell
+
+let haskell = default-code-printer
+  |> CodePrinter.set-syntax CodeSyntax.haskell
+
+let lang x = default-code-printer|> CodePrinter.set-syntax x 
+
+open CodePrinter
