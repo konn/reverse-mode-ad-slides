@@ -1,0 +1,20 @@
+@import: tikzyfi
+@require: azmath/azmath
+
+module Diagrams : sig
+  val \diag1: [] inline-cmd
+end = struct
+open TikZyFi
+let cfg = (|default with default-node-style = default-node-style |> circle|)
+let op = circle
+let-inline \diag1 = 
+  {\matrix?:(cfg)
+    [ [ node{${x}} ]
+    ; [   empty     ; empty ; empty            ; node?:(op){${+}} ; node?:(op){${\sin}}  ]
+    ; [ node {${y}} ; empty ; node?:(op) {${\times}} ; empty      ; node?:(op){${\times}} ]
+    ; [ node {${z}} ; empty ; node?:(op) {${e^{(-)}}} ]
+    ];}
+end
+
+open Diagrams
+

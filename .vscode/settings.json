@@ -1,0 +1,7 @@
+{
+  "editor.fontFamily": "JetBrains Mono Light,Menlo, Monaco, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  "[satysfi]": {
+    "editor.fontFamily": "JetBrains Mono Light"
+  }
+}

@@ -1,0 +1,195 @@
+@require: gr
+@require: base/base
+@require: base/tree-map
+@require: base/tree-set
+@require: base/ord
+@require: base/length
+@require: base/string
+@require: base/list-ext
+@require: base/option-ext
+@require: Color
+
+@import: dlist
+@import: algorithms
+
+type direction 
+  = North | South | East | West 
+  | NorthEast | NorthWest
+  | SouthEast | SouthWest
+  | Center
+type shape = Plain | Circle
+type node-style = (|
+  shape: shape; fill-color: color; stroke-color: color;
+  padding: length
+|)
+type config = (|unit-length: length; default-node-style : node-style|)
+type position = Coord of point | Relative of direction * string
+
+type matrix-node = (|name : string option; shape : shape;|)
+
+module TikZyFi : sig
+  type node
+  val empty: node
+  val node: (node-style -> node-style) ?-> inline-text -> node
+  val fc: color -> node-style -> node-style
+  val lc: color -> node-style -> node-style
+  val circle: node-style -> node-style
+  val plain: node-style -> node-style
+  val default: config
+  val default-node-style: node-style
+  type env
+  % val dfs: env -> ((string list) list) option
+  direct \matrix: [config?; (node list) list] inline-cmd
+end = struct
+  open Gr
+  open Algorithms
+
+  type extent = (|width : length; height: length; depth: length|)
+  let extent-of inl = 
+      let (w, h, d) = get-natural-metrics inl
+      in (|width = w; height = h; depth = d|)
+
+  let default-node-style = 
+    (|shape = Plain; padding = 5pt
+    ; stroke-color = Color.black
+    ; fill-color = Color.white
+    |)
+
+  let len-ord = Ord.make 
+        (fun x y -> (if x <' y
+          then Lt
+          else if x >' y then Gt else Eq)
+        )
+  let default : config = (|unit-length = 1cm ; default-node-style = default-node-style |)
+
+  let fc c = fun x -> (| x with fill-color = c |)
+  let lc c = fun x -> (| x with stroke-color = c |)
+  let circle = fun x -> (| x with shape = Circle|)
+  let plain = fun x -> (| x with shape = Plain|)
+
+  let graphics-extent grs = 
+        let ((min-x, min-y), (max-x, max-y)) = 
+              Option.unwrap-or ((0pt, 0pt), (0pt, 0pt))
+                (fold-map
+                  None
+                  (fun l r ->
+                    (match (l, r) with
+                    | (None, None) -> None
+                    | (Some(bb), None) -> Some(bb)
+                    | (None, Some(bb)) -> Some(bb)
+                    | (Some((xmin, ymin), (xmax, ymax)), Some((xmin1, ymin1), (xmax1, ymax1))) ->
+                        Some(
+                          (Length.min xmin xmin1, Length.min ymin ymin1),
+                          (Length.max xmax xmax1, Length.max ymax ymax1)
+                        )
+                    )
+                  ) 
+                  (fun gr -> Some(get-graphics-bbox gr))
+                  grs
+                )
+        in (|width = max-x -' min-x; height = max-y -' min-y; depth = 0pt |)
+
+  let render-graphics grs =
+        let extent = graphics-extent grs
+        in  inline-graphics extent#width extent#height extent#depth
+              (fun pt -> List.map (shift-graphics pt) grs)
+
+  let default-pads = (3pt, 3pt, 3pt, 3pt)
+
+  let plain = fun style -> (|style with shape = Plain|)
+
+  let empty-style: node-style = (|default-node-style with padding=0pt; shape=Plain|)
+  type node = Node of (|style : node-style -> node-style; body: inline-text|)
+  let empty = Node (|style = Fn.const empty-style; body = {}|)
+  let node ?:styler body = Node (|style = Option.unwrap-or Fn.id styler; body = body|)
+
+  let pads-of style = (style#padding, style#padding, style#padding, style#padding)
+  let circled style = 
+    inline-frame-outer (pads-of style) 
+      (fun (x, y) w h d ->
+        (let center = (x +' w *' 0.5, y +' (h -' d) *' 0.5) 
+        in let r = Length.max w (h -' d) *' 0.5 +' style#padding
+        in let circle = Gr.circle center r
+        in [ stroke 1pt style#stroke-color circle 
+          ; fill style#fill-color circle 
+          ]
+        )
+      )
+
+  let draw-node ctx cfg (Node node) =
+        let style = node#style cfg#default-node-style in
+        let it = node#body in 
+        let pads = (style#padding, style#padding, style#padding, style#padding) 
+        in match style#shape with
+                | Plain -> read-inline ctx it
+                | Circle -> circled style (read-inline ctx it)
+
+  let-inline ctx \matrix ?:cfg0 xss =
+    let cfg = Option.unwrap-or default cfg0 in
+    let dx = cfg#unit-length in
+    let dy = cfg#unit-length in
+    let ibs = List.map (List.map (draw-node ctx cfg) ) (List.reverse xss) in
+    let extents: (extent list) list = List.map (List.map extent-of) ibs
+    in let xoffs: length list = 
+          prescan-left
+            (fun off w -> off +' dx +' w)
+            0pt
+              (List.map 
+                (Fn.compose (Option.unwrap-or 0pt)
+                  (Fn.compose
+                    (List.max len-ord)
+                    (List.map (fun ext -> ext#width))
+                  )
+                )
+                (pad-transpose (|width=0pt;height=0pt;depth=0pt|) extents)
+              )
+    in let yoffs: length list =
+          prescan-lefti
+            (fun yn off ht -> off +' dy +' ht)
+            0pt
+            (List.map 
+              (Fn.compose (Option.unwrap-or 0pt)
+                (Fn.compose (List.max len-ord) 
+                  (List.map (fun ext -> ext#height +' ext#depth))
+                )
+              )
+              extents
+            )
+    in let ents = 
+            fold-zipi DList.empty DList.append 
+              (fun yn ystart row ->
+                fold-zipi
+                  DList.empty
+                  DList.append
+                  (fun xn xstart ib ->
+                    (let ext = extent-of ib
+                      in DList.singleton 
+                          (draw-text 
+                            ( xstart -' ext#width *' 0.5
+                            , ystart -' (ext#height -' ext#depth) *' 0.5
+                            )
+                            ib
+                          )
+                    )
+                  )
+                  xoffs
+                  row
+              )
+              yoffs
+              ibs
+    in render-graphics (DList.to-list ents)
+
+  type foo = Foo of matrix-node * inline-boxes
+  let mkFoo opts inl = Foo (Option.unwrap-or (|name = None; shape = Plain|) opts, inl)
+
+  type env = string node TreeMap.t
+  % let target-of (Node node) =
+  %       Option.and-then 
+  %         (fun pos -> 
+  %           (match pos with
+  %           | Relative (_, p) ->  Some(p)
+  %           | _ -> None
+  %           )
+  %         ) node#position
+  % let dfs = topsort String.ord target-of
+end
