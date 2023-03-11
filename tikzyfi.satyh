@@ -17,7 +17,7 @@ type direction
   | NorthEast | NorthWest
   | SouthEast | SouthWest
   | Center
-type shape = Plain | Circle
+type shape = Plain | Circle | Rect
 type node-style = (|
   shape: shape; fill-color: color; stroke-color: color;
   padding: length
@@ -34,6 +34,7 @@ module TikZyFi : sig
   val fc: color -> node-style -> node-style
   val lc: color -> node-style -> node-style
   val circle: node-style -> node-style
+  val rect: node-style -> node-style
   val plain: node-style -> node-style
   val default: config
   val default-node-style: node-style
@@ -65,6 +66,7 @@ end = struct
   let fc c = fun x -> (| x with fill-color = c |)
   let lc c = fun x -> (| x with stroke-color = c |)
   let circle = fun x -> (| x with shape = Circle|)
+  let rect = fun x -> (| x with shape = Rect|)
   let plain = fun x -> (| x with shape = Plain|)
 
   let graphics-extent grs = 
@@ -104,17 +106,31 @@ end = struct
   let node ?:styler body = Node (|style = Option.unwrap-or Fn.id styler; body = body|)
 
   let pads-of style = (style#padding, style#padding, style#padding, style#padding)
-  let circled style = 
-    inline-frame-outer (pads-of style) 
-      (fun (x, y) w h d ->
-        (let center = (x +' w *' 0.5, y +' (h -' d) *' 0.5) 
-        in let r = Length.max w (h -' d) *' 0.5 +' style#padding
-        in let circle = Gr.circle center r
+  let draw-node-shape-with f style = 
+      inline-frame-outer (pads-of style) 
+      (fun pt w h d ->
+        (let circle = f style pt w h d
         in [ stroke 1pt style#stroke-color circle 
-          ; fill style#fill-color circle 
+           ; fill style#fill-color circle 
           ]
         )
       )
+  let circled = 
+    draw-node-shape-with
+      (fun style (x, y) w h d ->
+        (let center = (x +' w *' 0.5, y +' (h -' d) *' 0.5) 
+        in let r = Length.max w (h -' d) *' 0.5 +' style#padding
+        in Gr.circle center r
+        )
+      )
+  let rectify = 
+    draw-node-shape-with
+    (fun style (x, y) w h d ->
+      ( let llc = (x, y -' d)
+        in let urc = (x +' w, y +' h)
+        in Gr.rectangle llc urc
+      )
+    )
 
   let draw-node ctx cfg (Node node) =
         let style = node#style cfg#default-node-style in
@@ -122,6 +138,7 @@ end = struct
         let pads = (style#padding, style#padding, style#padding, style#padding) 
         in match style#shape with
                 | Plain -> read-inline ctx it
+                | Rect -> rectify style (read-inline ctx it)
                 | Circle -> circled style (read-inline ctx it)
 
   let-inline ctx \matrix ?:cfg0 xss =
@@ -178,9 +195,6 @@ end = struct
               yoffs
               ibs
     in render-graphics (DList.to-list ents)
-
-  type foo = Foo of matrix-node * inline-boxes
-  let mkFoo opts inl = Foo (Option.unwrap-or (|name = None; shape = Plain|) opts, inl)
 
   type env = string node TreeMap.t
   % let target-of (Node node) =

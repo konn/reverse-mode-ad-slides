@@ -1,18 +1,23 @@
 @import: tikzyfi
 @require: azmath/azmath
+@require: Color
+@import: utils
 
 module Diagrams : sig
   val \diag1: [] inline-cmd
 end = struct
 open TikZyFi
+open Utils
 let cfg = (|default with default-node-style = default-node-style |> circle|)
-let op = circle
+let op = rect
+let inp = apps [circle; fc (Color.gray 0.75)]
 let-inline \diag1 = 
   {\matrix?:(cfg)
-    [ [ node{${x}} ]
-    ; [   empty     ; empty ; empty            ; node?:(op){${+}} ; node?:(op){${\sin}}  ]
-    ; [ node {${y}} ; empty ; node?:(op) {${\times}} ; empty      ; node?:(op){${\times}} ]
-    ; [ node {${z}} ; empty ; node?:(op) {${e^{(-)}}} ]
+    [ [ node?:(inp) {${x}} ]
+    ; [   empty     ; empty ; empty            ; node?:(op){${+}} ; empty; node?:(op){${\sin}}  ]
+    ; [ node?:(inp) {${y}} ; empty ; node?:(op) {${\times}} ; empty; empty; empty      ; node?:(op){${\times}}; empty; node?:(inp) {${w}} ]
+    ; []
+    ; [ node?:(inp) {${z}} ; empty ; node?:(op) {${e^{(-)}}} ]
     ];}
 end
 
