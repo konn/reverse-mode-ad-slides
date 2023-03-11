@@ -72,3 +72,8 @@ let bibyfi-theme = BiByFiIEEETran.theme (|
     et-al = true;
     journal-abbr = [];
   |)
+
+let gray = Color.gray 0.75
+
+let-inline ctx \verb s =
+  read-inline  (ctx |> use-code-font) (embed-string s)

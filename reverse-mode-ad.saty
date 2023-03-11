@@ -23,6 +23,12 @@ open FigBox
 open ArrowCommands
 open MyMath
 
+let-inline ctx \gbox ?:w x  = 
+  let padding = match w with
+        | None -> 2pt
+        | Some(w) -> w
+    in read-inline ctx {\fbox?:(0pt)?:(padding)?:(bg-color)?:(gray){#x;}}
+
 in document '<
   +set-config(slydifi-cfg);
   +make-title(|
@@ -210,9 +216,9 @@ in document '<
         * \emph{継続}：プログラミング言語理論の概念である点からみた\emph{続きの計算}を表す
         * \emph{限定継続}：ある点から特定の点までの\emph{続きの計算}を表す
           ** ここでは\code(`shift`);/\code(`reset`);という一組のオペレータを使った定式化を使う
-          ** 例：\texttt{1 + reset [\fbox?:(0pt)?:(5pt)?:(bg-color)?:(Color.gray 0.75){10 + \ovalbox?:(0pt)?:(2pt)?:(Color.gray 0.75)?:(bg-color){shift \{fun(k) =\> k(k(100)) + 1000\}} \* 2}]}
+          ** 例：\verb(`1 + reset [`);\gbox?:(5pt){\verb(`10 + `); \ovalbox?:(0pt)?:(3pt)?:(Color.gray 0.75)?:(bg-color){\verb(`shift {fun(`);\gbox{\texttt{k}}\verb(`) => `); \gbox{\texttt{k}}\texttt{(}\gbox{\texttt{k}}\verb(`(100)) + 1000}`);} \verb(` * 2}`);}\verb(` ]`);
           *** \code(`shift`);から見て\code(`reset`);にブチ当るまでの続きの計算が \code(`k`); に束縛される．
-          *** 今回の場合は \code(`k = fun(n) -> 10 + n * 2`);
+          *** 今回の場合は \code(`k = fun(n) => 10 + n * 2`);
           *** 上式は \code(`1 + (fun(k) => k(k(100)) + 1000)(fun(n) => 10 + n * 2)`);と同値
           *** 評価を進めれば，\code(`1 + ((10 + (10 + 100 * 2) * 2) + 1000) = 1431`);となる．
         * Wang et al.\cite[`Wang:2018`];では限定継続によるReverse-Mode自動微分を提案している
