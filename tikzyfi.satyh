@@ -100,11 +100,11 @@ end = struct
 
   type dx = length
   type dy = length
-  % Maps direction to the in the relative coordinate of the node
+  % Maps direction to the coordinate relative to the node origin.
   % TODO: Use envelopes (ala diagrams in Haskell) for more fine-grained tracing
   type locator = direction -> dx * dy
-  type node-geometry = (|local-origin: point; locator: locator|)
 
+  type node-geometry = (|locator: locator|)
 
   let plain = fun style -> (|style with shape = Plain|)
 
@@ -114,6 +114,31 @@ end = struct
   let node ?:styler body = Node (|style = Option.unwrap-or Fn.id styler; body = body|)
 
   let pads-of style = (style#padding, style#padding, style#padding, style#padding)
+
+  let locate-rect extent dir =
+        match dir with
+        | Center -> (0pt, 0pt)
+        | North  -> (0pt, extent#height)
+        | South -> (0pt, 0pt -' extent#depth)
+        | East  -> (extent#width *' 0.5, 0pt)
+        | West  -> (extent#width *' (-0.5), 0pt)
+        | NorthEast -> (extent#width *' 0.5, extent#height)
+
+
+  let to-geometric-node-with l f style ib = 
+    let ext = extent-of ib in 
+    let node = inline-frame-outer (pads-of style) 
+          (fun pt w h d ->
+            (let shape = f style pt w h d
+            in [ stroke 1pt style#stroke-color shape 
+              ; fill style#fill-color shape 
+              ]
+            )
+          )
+          ib
+    in let geometry =(|locator = l ext|)
+    in (node, geometry)
+
   let draw-node-shape-with f style = 
       inline-frame-outer (pads-of style) 
       (fun pt w h d ->
@@ -123,6 +148,7 @@ end = struct
           ]
         )
       )
+
   let circled = 
     draw-node-shape-with
       (fun style (x, y) w h d ->
@@ -131,6 +157,7 @@ end = struct
         in Gr.circle center r
         )
       )
+
   let rectify = 
     draw-node-shape-with
     (fun style (x, y) w h d ->
@@ -152,7 +179,7 @@ end = struct
   let node-at (xstart, ystart) ib =
     (let ext = extent-of ib
       in let center-x = xstart -' ext#width *' 0.5
-      in let center-y = ystart -' (ext#height -' ext#depth) *' 0.5
+      in let center-y = ystart
       in let center = (center-x, center-y)
       in draw-text center ib
     )
@@ -182,7 +209,7 @@ end = struct
             (List.map 
               (Fn.compose (Option.unwrap-or 0pt)
                 (Fn.compose (List.max len-ord) 
-                  (List.map (fun ext -> ext#height +' ext#depth))
+                  (List.map (fun ext -> ext#height))
                 )
               )
               extents
