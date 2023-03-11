@@ -269,7 +269,7 @@ in document '<
       +code-printer?:(delcont)(
 ```grad f x = {
   z <- D x 0.0
-  reset { w <- f(z); w.d = 1.0 }
+  reset { w <- f z; w.d = 1.0 }
   return z.d
 }
 ```
