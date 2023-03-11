@@ -239,7 +239,9 @@ in document '<
   shift { fun k ->
     z <- D (x + y) 0.0
     k z
-    dx += z.d; dy += z.d
+    dx += z.d
+    dy += z.d
+    return z
   }
 ```
             );
@@ -250,8 +252,9 @@ in document '<
   shift { fun k ->
     z <- D (x * y) 0.0
     k z
-    dx += y * z.d;
+    dx += y * z.d
     dy += x * z.d
+    return z
   }
 ```
             );
