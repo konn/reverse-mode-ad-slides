@@ -17,7 +17,7 @@ let-inline \diag1 =
     ; [   empty     ; empty ; empty            ; node?:(op){${+}} ; empty; node?:(op){${\sin}}  ]
     ; [ node?:(inp) {${y}} ; empty ; node?:(op) {${\times}} ; empty; empty; empty      ; node?:(op){${\times}}; empty; node?:(inp) {${w}} ]
     ; []
-    ; [ node?:(inp) {${z}} ; empty ; node?:(op) {${e^{(-)}}} ]
+    ; [ node?:(inp) {${z}} ; empty ; node?:(op) {${e^{\bullet}}} ]
     ];}
 end
 

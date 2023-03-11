@@ -235,7 +235,7 @@ in document '<
 
     +frame{あとでけす}<
       +p{ 
-        \diag1;
+        これは \quad; \diag1;
       }
     >
 

@@ -98,6 +98,14 @@ end = struct
 
   let default-pads = (3pt, 3pt, 3pt, 3pt)
 
+  type dx = length
+  type dy = length
+  % Maps direction to the in the relative coordinate of the node
+  % TODO: Use envelopes (ala diagrams in Haskell) for more fine-grained tracing
+  type locator = direction -> dx * dy
+  type node-geometry = (|local-origin: point; locator: locator|)
+
+
   let plain = fun style -> (|style with shape = Plain|)
 
   let empty-style: node-style = (|default-node-style with padding=0pt; shape=Plain|)
@@ -141,8 +149,15 @@ end = struct
                 | Rect -> rectify style (read-inline ctx it)
                 | Circle -> circled style (read-inline ctx it)
 
-  let-inline ctx \matrix ?:cfg0 xss =
-    let cfg = Option.unwrap-or default cfg0 in
+  let node-at (xstart, ystart) ib =
+    (let ext = extent-of ib
+      in let center-x = xstart -' ext#width *' 0.5
+      in let center-y = ystart -' (ext#height -' ext#depth) *' 0.5
+      in let center = (center-x, center-y)
+      in draw-text center ib
+    )
+
+  let place-matrix-nodes ctx cfg xss =
     let dx = cfg#unit-length in
     let dy = cfg#unit-length in
     let ibs = List.map (List.map (draw-node ctx cfg) ) (List.reverse xss) in
@@ -173,28 +188,22 @@ end = struct
               extents
             )
     in let ents = 
-            fold-zipi DList.empty DList.append 
+          fold-zipi DList.empty DList.append 
               (fun yn ystart row ->
-                fold-zipi
-                  DList.empty
-                  DList.append
+                fold-zipi DList.empty DList.append 
                   (fun xn xstart ib ->
-                    (let ext = extent-of ib
-                      in DList.singleton 
-                          (draw-text 
-                            ( xstart -' ext#width *' 0.5
-                            , ystart -' (ext#height -' ext#depth) *' 0.5
-                            )
-                            ib
-                          )
-                    )
+                    DList.singleton (node-at (xstart, ystart) ib)
                   )
                   xoffs
                   row
               )
               yoffs
               ibs
-    in render-graphics (DList.to-list ents)
+    in DList.to-list ents
+
+  let-inline ctx \matrix ?:cfg0 xss =
+    let cfg = Option.unwrap-or default cfg0 in
+    render-graphics (place-matrix-nodes ctx cfg xss)
 
   type env = string node TreeMap.t
   % let target-of (Node node) =
