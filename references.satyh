@@ -1,0 +1,59 @@
+@require: bibyfi/bibyfi
+@require: class-slydifi/theme/arctic
+@require: fss/fss
+
+let bibs =
+[ (`Krawiec:2022`, 
+    InProceedings(|
+      author = [
+        `Faustyna Krawiec`; `Simon Peyton Jones`; `Neel Krishnaswami`;
+        `Tom Ellis`; `Richard A. Eisenberg`; `Andrew Fitzgibbon`;
+      ];
+      address = Some(`New York, NY, USA`);
+      booktitle = `Proceedings of the ACM on Programming Languages, Volume 6, Issue POPL`;
+      editor = None;
+      key = None;
+      month = Some(`January`);
+      note = Some(`ISBN: 9784797341379; doi: 10.1145/3498710`);
+      organization = Some(`Association for Computing Machinery`);
+      pages = None;
+      publisher = Some(`Association for Computing Machinery`);
+      title = `Provably Correct, Asymptotically Efficient, Higher-Order Reverse-Mode Automatic Differentiation`;
+      year = `2022`;
+      |)
+  )
+; ( `Wang:2018`,
+    InProceedings(|
+      author = [
+        `Fei Wang`; `James Decker`; `Xilun Wu`; 
+        `Gr\'{e}gory Essertel`; `Tiark Rompf`;
+      ];
+      address = Some(`New York, NY, USA`);
+      booktitle = `NIPS'18: Proceedings of the 32nd International Conference on Neural Information Processing Systems`;
+      editor = None;
+      key = None;
+      month = Some(`December`);
+      note = Some(`doi: 10.5555/3327546.3327682`);
+      organization = Some(`Association for Computing Machinery`);
+      pages = None;
+      publisher = Some(`Association for Computing Machinery`);
+      title = `Backpropagation with Continuation Callbacks: Foundations for Efficient and Expressive Differentiable Programming`;
+      year = `2018`;
+    |)
+  )
+; ( `岡谷:2022`,
+    Book
+    (|address = None
+    ; author = [`岡谷貴之`]
+    ; edition = Some(`改訂第2版`)
+    ; key = None
+    ; month = Some(`January`)
+    ; note = Some(`ISBN: 978-4-06-513332-3`)
+    ; publisher = `講談社`
+    ; series = Some(`機械学習プロフェッショナルシリーズ`)
+    ; title = `深層学習`
+    ; volume = None
+    ; year = `2022`
+    |)
+  )
+]

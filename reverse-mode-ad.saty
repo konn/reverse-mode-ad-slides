@@ -7,11 +7,17 @@
 @require: ncsq/ncsq
 @require: arrows/arrows
 @require: arrows/commands
+@require: fss/fss
+@require: fss/fonts
+@require: latexcmds/latexcmds
+@require: fss/style
 
+@import: references
 @import: presets
 @import: theorems
 @import: mymath
 
+open LatexCmds
 open SlydifiOverlay
 open FigBox
 open ArrowCommands
@@ -29,7 +35,8 @@ in document '<
     +frame{自動微分とは？}<
       +listing{
         * \emph{自動微分}：与えられた関数の値とその微分係数を，合成関数の微分公式（\emph{連鎖律}）を使って効率的・厳密に計算する方法
-          ** 関数の値を順に計算しながら、連鎖律を使って微分係数も計算する
+          ** 関数の値を順に計算しながら，連鎖律を使って微分係数も計算する
+          ** 深層学習で損失関数の最適化の際に用いる\emph{誤差逆伝播法}で注目を集める
         * 関連するが異なる計算方法：
           ** \emph{記号微分}：数式を記号的な構文木で表現し，微分法則に従い記号的に処理．
             *** 厳密だが項数が組合せ爆発して非効率になりがち．
@@ -71,7 +78,7 @@ in document '<
 
     +frame?:(4){連鎖律（多変数）}<
       +p{
-        多変数も同様（但し、各${\ipp{\bm{u}_i}{\bm{u}_j}}はヤコビ行列だと思うこと）
+        多変数も同様（但し，各${\ipp{\bm{u}_i}{\bm{u}_j}}はヤコビ行列だと思うこと）
       }
       +NCSq.cd(open NCSq in [[
         object ${\R^{n_{N}}};
@@ -112,8 +119,8 @@ in document '<
       +listing{
         * \emph{Dual Number} ${\R[d]/(d^2)} を使って計算できる
           ** ${x + y d} の ${y} が一次微分係数を覚える役割を果す（${f(x) + f'(x) d} と思う）
-        * 代数演算はそのまま延長、（区分的に）滑らかな関数についてもWeil環の標準的な${C^\infty}-環構造が入る
-          ** 難しく聞こえるが、以下のような感じ：
+        * 代数演算はそのまま延長，（区分的に）滑らかな関数についてもWeil環の標準的な${C^\infty}-環構造が入る
+          ** 難しく聞こえるが，以下のような感じ：
             \gather?:(AZMathEquation.notag)(${
                 |\sin(x + yd) = \sin(x) + y\cos(x) d,
                 |\cos(x + yd) = \cos(x) - y\sin(x) d,
@@ -135,19 +142,19 @@ in document '<
           ||= (\sin(x^ 2 + 2xd + 1), e^{x^2 + 2xd}, (x^3 + 3 x^2 d) (e^{-x} - e^{-x}d))
           ||= (\sin(x^ 2 + 1) + 2x\cos(x^ 2 + 1)d, e^{x^2} + 2xe^{x^2}d, (x^3 + 3 x^2 d) (e^{-x} - e^{-x}d))
           ||= (\sin(x^ 2 + 1), e^{x^2}, x^3 e^{x-x})
-            + \muline{(2x\cos(x^ 2 + 1), 2xe^{x^2}, -x^3 e^{-x} + 3 x^2 e^{-x})}d
+            + \underset{\text!{\fontsize(15pt){一階微分係数}}}{\muline{(2x\cos(x^ 2 + 1), 2xe^{x^2}, -x^3 e^{-x} + 3 x^2 e^{-x})}}d
           |});
       }
     >
 
     +frame{Forward-Mode だけでいいのでは？}<
       +listing{
-        * 入力が一変数、出力が多変数の場合はForward-Mode で十分効率的
-        * しかし、機械学習のように${f: \R^N \to \R}で${N \gg 0}の場合、Forward-Mode では効率がわるすぎる！
+        * 入力が一変数，出力が多変数の場合はForward-Mode で十分効率的
+        * しかし，機械学習のように${f: \R^N \to \R}で${N \gg 0}の場合，Forward-Mode では効率がわるすぎる！
           \enumerate{
-            * 素朴にやると、${\R[d]^N}を用意して、${i < N}ごとに${(0, \ldots, 0, x + d_i, 0, \ldots)}みたいなのを何回も渡すことになる
+            * 素朴にやると，${\R[d]^N}を用意して，${i < N}ごとに${(0, \ldots, 0, x + d_i, 0, \ldots)}みたいなのを何回も渡すことになる
             * これを組にして ${(\R[d]^N)^N} について一挙に計算すると one-pass
-            * しかしいずれにせよ変数の数について自乗のオーダーがかかってしまい非効率！
+            * いずれにせよ変数の数について自乗オーダーかかってしまい非効率！
           }
         * ${\idd{\bm{x}}{\bm{x}} = \idd{\bm{u}_0}{\bm{u}_0}}ではなく${\idd{\bm{u}_N}{\bm{u}_N}}の側から辿ったらどうか？
           ** これが \emph{Reverse-Mode} 自動微分！
@@ -184,10 +191,65 @@ in document '<
             ) \text!{Reverse}
           |});
         * 問題：計算の\emph{入出力と逆順}に辿る必要がある！
-          ** 微分係数の計算には\emph{関数の値そのもの}が必要、\emph{往復}する必要がある
+          ** 微分係数の計算には\emph{関数の値そのもの}が必要，\emph{往復}する必要がある
             *** 機械学習で\emph{誤差逆伝播法}(\emph{back propagation})と呼ばれるもの
           ** これを実現するためにいくつかやり方が知られている
       }
     >
+
+    +frame{計算のグラフを覚えておく}<
+      +listing{
+        * Wengert Tapeなどと呼ばれる手法も同梱
+        * 以下の説明は\cite[`岡谷:2022`];を参考にした。
+
+      }
+    >
+
+    +frame{限定継続}<
+      +listing{
+        * \emph{継続}：プログラミング言語理論の概念である点からみた\emph{続きの計算}を表す
+        * \emph{限定継続}：ある点から特定の点までの\emph{続きの計算}を表す
+          ** ここでは\code(`shift`);/\code(`reset`);という一組のオペレータを使った定式化を使う
+          ** 例：\texttt{1 + reset [\fbox?:(0pt)?:(5pt)?:(bg-color)?:(Color.gray 0.75){10 + \ovalbox?:(0pt)?:(2pt)?:(Color.gray 0.75)?:(bg-color){shift \{fun(k) =\> k(k(100)) + 1000\}} \* 2}]}
+          *** \code(`shift`);から見て\code(`reset`);にブチ当るまでの続きの計算が \code(`k`); に束縛される．
+          *** 今回の場合は \code(`k = fun(n) -> 10 + n * 2`);
+          *** 上式は \code(`1 + (fun(k) => k(k(100)) + 1000)(fun(n) => 10 + n * 2)`);と同値
+          *** 評価を進めれば，\code(`1 + ((10 + (10 + 100 * 2) * 2) + 1000) = 1431`);となる．
+        * Wang et al.\cite[`Wang:2018`];では限定継続によるReverse-Mode自動微分を提案している
+      }
+    >
+
+    +frame{限定継続によるReverse-Mode自動微分の実装}<
+
+    >
+
+    +frame{正当性の証明}<
+      +listing{
+        * 「うまくいきそう」以上をどう証明するか？
+        * Krawiec et al. \cite[`Krawiec:2022`];ではプログラム変換として捉え，プログラミング言語意味論の手法を使ってその正当性を証明している．
+          ** 実数値とその有限直和・直積を含む簡単な単純型付き${\lambda}-計算の体系を定義
+          ** Forward- および Reverse-Mode 自動微分をその体系に対するプログラム変換として定式化
+          ** 様々な計算体系の正規化定理の証明などに用いられる\emph{logical relation}の論法を応用して，その正当性を示している
+          ** 線型型などを使って空間・時間計算量の最適性も示している
+      }
+    >
+
+  >
+  +section{|まとめ|}<
+    +namedframe(`まとめ`){\select(from 2){Any Questions?}{まとめ}}<
+
+    >
+    +frame-nofooter{参考文献}<
+      +font-style[font-size 15pt]<
+        +makebibliography 
+          ?:(|sort-references=true; 
+              citestyle=CiteAsNumber;
+              name-shrink=true;
+          |)
+          (bibyfi-theme)(bibs);
+      >
+    >
+
+    +againframe(`まとめ`);
   >
 >
