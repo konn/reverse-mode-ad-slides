@@ -38,7 +38,7 @@ in document '<
   +make-title(|
     title = {|Reverse-Mode 自動微分を理解する|};
     author = {|Hiromi ISHII|};
-    date = {|2023-03-15|Tsukuba Computer Mathematics Seminar 2023|};
+    date = {|2023-03-12|Tsukuba Computer Mathematics Seminar 2023|};
   |);
 
   +section{|Forward-Mode と Reverse-Mode 自動微分|}<
@@ -88,7 +88,7 @@ in document '<
 
     +frame?:(4){連鎖律（多変数）}<
       +p{
-        多変数も同様（但し，各${\ipp{\bm{u}_i}{\bm{u}_j}}はヤコビ行列だと思うこと）
+        多変数も同様（但し，各${\ipp{\bm{u}_i}{\bm{u}_j}}はヤコビ行列${J_{ij} = [\ipp{u_{ik}}{u_{jl}}]_{k < N_i, l < N_j}}）
       }
       +NCSq.cd(open NCSq in [[
         object ${\R^{n_{N}}};
@@ -207,7 +207,7 @@ in document '<
       }
     >
 
-    +frame?:(8){Reverse-Mode概説（説明は\cite[`岡谷:2022`];を参考にした）}<
+    +frame-nofooter?:(8){Reverse-Mode概説（説明は\cite[`岡谷:2022`];を参考にした）}<
       +listing{
         * 計算グラフをつくって，最後から手繰っていく
           \eqn?:(AZMathEquation.notag)(${f(x,y,z) = \sin(x + y^2) e^z});
@@ -332,7 +332,5 @@ in document '<
           (bibyfi-theme)(bibs);
       >
     >
-
-    +againframe(`まとめ`);
   >
 >

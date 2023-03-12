@@ -48,13 +48,13 @@ let-inline \diag1 =
     ; delta(north-of `+`){\phantom(from 5){${e^z \cos(x + y^2)}}}
     ; delta(north-of `z`){\phantom(from 5){${\sin(x + y^2) e^z}}}
     ; delta(north-of `x`){\phantom(from 6){${e^z \cdot \cos(x + y^2)}}}
-    ; delta?:(1.5cm)(east-of `square`){
+    ; delta?:(10pt)(south-of `square`){
         \phantom(from 6){${e^z \cos(x + y^2)}}
       }
-    ; delta(north-of `y`){
+    ; delta?:(25pt)(north-west-of `y`){
         \phantom(only 7){${y e^z\cos(x + y^2)}}
       }
-    ; delta?:(15pt)(south-of `y`){
+    ; delta?:(25pt)(south-west-of `y`){
         \phantom(only 7){${y e^z\cos(x + y^2)}}
       }
     ; delta?:(50pt)(west-of `y`){
