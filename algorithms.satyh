@@ -35,12 +35,13 @@ module Algorithms : sig
 end = struct
   let concat xss = List.fold-right List.append [] xss
   let incr ord toEdge (ident, mpos) inDegs  =
+    let indegs1 = TreeMap.insert ord ident 0 inDegs in
     match toEdge mpos with
     | Some(targ) -> 
-        (match TreeMap.get ord targ inDegs with
-            | None -> TreeMap.insert ord targ 1 inDegs
-            | Some(n) -> TreeMap.insert ord targ (n + 1) inDegs)
-    | _ -> TreeMap.insert ord ident 0 inDegs
+        (match TreeMap.get ord targ indegs1 with
+            | None -> TreeMap.insert ord targ 1 indegs1
+            | Some(n) -> TreeMap.insert ord targ (n + 1) indegs1)
+    | _ -> indegs1
   let dfs2 ord toEdge starts graph =
       let-rec
         go1 vis x = 
