@@ -207,35 +207,14 @@ in document '<
       }
     >
 
-    +frame{計算のグラフを覚えておく}<
+    +frame?:(8){Reverse-Mode概説（説明は\cite[`岡谷:2022`];を参考にした）}<
       +listing{
-        * Wengert Tapeなどと呼ばれる手法も同梱
-        * 以下の説明は\cite[`岡谷:2022`];を参考にした．
-
+        * 計算グラフをつくって、最後から手繰っていく
           \eqn?:(AZMathEquation.notag)(${f(x,y,z) = \sin(x + y^2) e^z});
-          \NCSq.cd(open NCSq in open NCSqArrowStyle in [
-            [object ${x}          ; arrow ?*?*?:line right  ; arrow ?*?*?:line right; arrow ?*?*?:line right; point];
-            [empty                ; empty  ;empty                 ; empty; arrow down];
-            [empty                ; empty  ;empty                 ; empty; object ${+}; arrow right; object ${\sin}; arrow ?*?*?:line right; point];
-            [point                ; arrow ?*?*?:line right  ; point
-            ; empty; empty; empty; empty; empty; arrow down ];
-            [arrow ?*?*?:line up  ; empty                   ; arrow down; empty; arrow  up ];
-            [object ${y}          ; empty
-            ; object ${\times}; arrow ?*?*?:line right
-            ; point; empty; empty; empty; object ${\times}; arrow right; object ${}
-            ];
-            [arrow ?*?*?:line down  ; empty                  ; arrow up];
-            [point                ; arrow ?*?*?:line right ; point ; arrow up; empty ; empty; empty; empty; arrow up];
-            [object ${z}; arrow right; object ${e^{(-)}} 
-            ; arrow ?*?*?:line right; arrow ?*?*?:line right
-            ; arrow ?*?*?:line right; arrow ?*?*?:line right; arrow ?*?*?:line right; point];
-          ]);
-      }
-    >
+        }
 
-    +frame{あとでけす}<
-      +p{ 
-        これは \quad; \diag1;
+      +centering{ 
+        \diag1;
       }
     >
 

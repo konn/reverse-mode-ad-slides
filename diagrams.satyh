@@ -2,6 +2,7 @@
 @require: azmath/azmath
 @require: Color
 @require: latexcmds/latexcmds
+@require: class-slydifi/theme/arctic
 @import: utils
 @import: mymath
 
@@ -12,12 +13,16 @@ open TikZyFi
 open LatexCmds
 open Utils
 open MyMath
+open SlydifiOverlay
 let cfg = (|default with 
   default-node-style = default-node-style |> circle;
-  % unit-length = 1cm;
+  unit-length = 1.25cm;
 |)
-let op = rect
+let op = apps [circle; fc Color.white]
 let inp = apps [circle; fc (Color.gray 0.75)]
+let delta-size = 14pt
+let delta ?:dist pos x = 
+      node-at?:[plain;distance (Option.unwrap-or 4pt dist)](pos) {\fontsize(delta-size){#x;}}
 let-inline \diag1 = 
   { \tikzy?:(cfg)
     [ matrix 
@@ -27,18 +32,43 @@ let-inline \diag1 =
         ; node?:[op; named `sin`]{${\sin}}
         ]
       ; [ node?:[inp; named `y`] {${y}} ; empty 
-        ; node?:[op; named `square`] {${\times}} ; empty; empty; empty      
+        ; node?:[op; named `square`] {${\times}} ; empty; empty; empty; empty
         ; node?:[op; named `mul`]{${\times}}; empty
         ; node?:[inp; named `w`] {${w}} 
         ]
       ; []
-      ; [ node?:[inp; named `z`] {${z}} ; empty 
+      ; [ node?:[inp; named `z`] {${z}} ; empty; empty; empty; empty
         ; node?:[op; named `exp`] {${e^{\bullet}}} 
         ]
       ]
-    ; node-at?:[plain;named `dw`](Relative(NorthEast, `w`))
-        {\fontsize(15pt){${\pp{w}{w} = 1}}}
-    ; arrow (Relative(East, `x`)) (Relative(West, `+`))
+    ; delta?:(15pt)(north-east-of `w`){\phantom(from 2){${\pp{w}{w} = 1}}}
+    ; delta(north-of `mul`){\phantom(from 3){${1}}}
+    ; delta(north-of `sin`){\phantom(from 4){${e^z \cdot 1}}}
+    ; delta(north-of `exp`){\phantom(from 4){${\sin(x + y^2) \cdot 1}}}
+    ; delta(north-of `+`){\phantom(from 5){${e^z \cos(x + y^2)}}}
+    ; delta(north-of `z`){\phantom(from 5){${\sin(x + y^2) e^z}}}
+    ; delta(north-of `x`){\phantom(from 6){${e^z \cdot 1 \cdot \cos(x + y^2)}}}
+    ; delta?:(2cm)(east-of `square`){
+        \phantom(from 6){${e^z \cos(x + y^2)}}
+      }
+    ; delta(north-of `y`){
+        \phantom(only 7){${y e^z\cos(x + y^2)}}
+      }
+    ; delta?:(15pt)(south-of `y`){
+        \phantom(only 7){${y e^z\cos(x + y^2)}}
+      }
+    ; delta?:(50pt)(west-of `y`){
+        \phantom(from 8){${2y e^z\cos(x + y^2)}}
+      }
+    ; arrow (east-of `x`) (north-west-of `+`)
+    ; arrow (north-east-of `y`) (north-west-of `square`)
+    ; arrow (south-east-of `y`) (south-west-of `square`)
+    ; arrow (east-of `z`) (west-of `exp`)
+    ; arrow (north-east-of `square`) (south-west-of `+`)
+    ; arrow (east-of `+`) (west-of `sin`)
+    ; arrow (east-of `sin`) (north-west-of `mul`)
+    ; arrow (east-of `exp`) (south-west-of `mul`)
+    ; arrow (east-of `mul`) (west-of `w`)
     ];
   }
 end
