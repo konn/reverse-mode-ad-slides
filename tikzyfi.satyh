@@ -11,6 +11,7 @@
 @require: base/random
 @require: base/tuple
 @require: Color
+@require: arrows/arrows
 
 @import: utils
 @import: dlist
@@ -62,6 +63,7 @@ end = struct
   open Gr
   open Random
   open Algorithms
+  open Utils
 
   type extent = (|width : length; height: length; depth: length|)
   let extent-of inl = 
@@ -337,7 +339,6 @@ end = struct
     in let graphic = draw-text position raw#body
     in let node2 = (|position = position; body = graphic; style = raw#style|)
     in let (x, y) = position
-
     in TreeMap.insert String.ord name node2 poss
 
   let toEdge b =
@@ -373,14 +374,23 @@ end = struct
         String.empty
         (List.map (fun (nam, b) -> (nam, toEdge b)) (TreeMap.to-list env))
 
+  let draw-arrow ctx cfg node-dic (src, tgt) =
+    let cfg2 = (|cfg with unit-length = -5pt|)
+    in let src-pt = get-dir-of cfg2 node-dic src
+    in let tgt-pt = get-dir-of cfg2 node-dic tgt
+    in let theta = atan2-pt (sub-pt tgt-pt src-pt)
+    in let drawer = Arrow.read (Arrow.solid (|line-width = 0.05; head-size = 0.4|)) ctx
+    in DList.of-list (drawer#draw src-pt tgt-pt)
+
   let make-tikzy ctx cfg elems =
     let uuid = `#!tikz-` ^ arabic (random())
-    in let (ini-nodes, arrows) = 
+    in let (ini-nodes, arrows0) = 
           fold-mapi 
             (TreeMap.empty, DList.empty) 
             (Utils.biap (union String.ord) DList.append) 
             (fun n -> process-elem ctx cfg (uuid ^ `@` ^ arabic n))
             elems
+    in let arrows = DList.to-list arrows0
     in let sorted: (string * raw-node) list = 
           concat 
           (Option.expect 
@@ -389,8 +399,14 @@ end = struct
           )
     in let node-dic = 
           List.fold-right (resolve-raw-node ctx cfg) TreeMap.empty sorted
-    in let nodes = List.map (fun (_, node) -> node#body) (TreeMap.to-list node-dic)
-    in render-graphics nodes
+    in let node-grs = List.map (fun (_, node) -> node#body) 
+              (TreeMap.to-list node-dic)
+    in let arrow-grs =
+          DList.to-list
+          (fold-map DList.empty DList.append 
+            (draw-arrow ctx cfg node-dic) arrows
+          )
+    in render-graphics (List.append node-grs arrow-grs)
 
   let-inline ctx \matrix ?:cfg0 xss =
     let cfg = Option.unwrap-or default-matrix cfg0
