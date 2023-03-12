@@ -70,31 +70,31 @@ end = struct
   let plain = fun x -> (| x with shape = Plain|)
 
   let graphics-extent grs = 
-        let ((min-x, min-y), (max-x, max-y)) = 
-              Option.unwrap-or ((0pt, 0pt), (0pt, 0pt))
-                (fold-map
-                  None
-                  (fun l r ->
-                    (match (l, r) with
-                    | (None, None) -> None
-                    | (Some(bb), None) -> Some(bb)
-                    | (None, Some(bb)) -> Some(bb)
-                    | (Some((xmin, ymin), (xmax, ymax)), Some((xmin1, ymin1), (xmax1, ymax1))) ->
-                        Some(
-                          (Length.min xmin xmin1, Length.min ymin ymin1),
-                          (Length.max xmax xmax1, Length.max ymax ymax1)
-                        )
-                    )
-                  ) 
-                  (fun gr -> Some(get-graphics-bbox gr))
-                  grs
-                )
-        in (|width = max-x -' min-x; height = max-y -' min-y; depth = 0pt |)
+    let ((min-x, min-y), (max-x, max-y)) = 
+        Option.unwrap-or ((0pt, 0pt), (0pt, 0pt))
+          (fold-map
+            None
+            (fun l r ->
+              (match (l, r) with
+              | (None, None) -> None
+              | (Some(bb), None) -> Some(bb)
+              | (None, Some(bb)) -> Some(bb)
+              | (Some((xmin, ymin), (xmax, ymax)), Some((xmin1, ymin1), (xmax1, ymax1))) ->
+                  Some(
+                    (Length.min xmin xmin1, Length.min ymin ymin1),
+                    (Length.max xmax xmax1, Length.max ymax ymax1)
+                  )
+              )
+            ) 
+            (fun gr -> Some(get-graphics-bbox gr))
+            grs
+          )
+    in (|width = max-x -' min-x; height = max-y -' min-y; depth = 0pt |)
 
   let render-graphics grs =
-        let extent = graphics-extent grs
-        in  inline-graphics extent#width extent#height extent#depth
-              (fun pt -> List.map (shift-graphics pt) grs)
+    let extent = graphics-extent grs
+    in  inline-graphics extent#width extent#height extent#depth
+          (fun pt -> List.map (shift-graphics pt) grs)
 
   let default-pads = (3pt, 3pt, 3pt, 3pt)
 
@@ -116,14 +116,37 @@ end = struct
   let pads-of style = (style#padding, style#padding, style#padding, style#padding)
 
   let locate-rect extent dir =
+      let h = extent#height +' extent#depth in
+      let w = extent#width in
         match dir with
         | Center -> (0pt, 0pt)
         | North  -> (0pt, extent#height)
         | South -> (0pt, 0pt -' extent#depth)
-        | East  -> (extent#width *' 0.5, 0pt)
-        | West  -> (extent#width *' (-0.5), 0pt)
-        | NorthEast -> (extent#width *' 0.5, extent#height)
+        | East  -> (w *' 0.5, 0pt)
+        | West  -> (w *' (-0.5), 0pt)
+        | NorthEast -> (w *' 0.5, h *' 0.5)
+        | NorthWest -> (w *' (-0.5), h *' 0.5)
+        | SouthEast -> (w *' 0.5, h *' (-0.5))
+        | SouthWest -> (w *' (-0.5), h *' (-0.5))
 
+  let locate-plain = locate-rect
+  let locate-circle extent dir =
+    let r = extent#width *' 0.5 in
+    let pi = 3.141592653589793238462
+    in let deg = 
+        match dir with
+        | Center -> None
+        | North -> Some(pi /. 2.0)
+        | South -> Some(pi /. (-2.0))
+        | East -> Some(0.0)
+        | West -> Some(pi)
+        | NorthEast -> Some(pi /. 4.0)
+        | NorthWest -> Some(3.0 *. pi /. 4.0)
+        | SouthEast -> Some(pi /. (-4.0))
+        | SouthWest -> Some(5.0 *. pi /. 4.0)
+    in match deg with
+       | None  -> (0pt, 0pt)
+       | Some(deg) -> (r *' cos deg, r *' sin deg)
 
   let to-geometric-node-with l f style ib = 
     let ext = extent-of ib in 
