@@ -8,16 +8,25 @@ module Diagrams : sig
 end = struct
 open TikZyFi
 open Utils
-let cfg = (|default with default-node-style = default-node-style |> circle|)
+let cfg = (|default-matrix with default-node-style = default-node-style |> circle|)
 let op = rect
 let inp = apps [circle; fc (Color.gray 0.75)]
 let-inline \diag1 = 
   {\matrix?:(cfg)
-    [ [ node?:(inp) {${x}} ]
-    ; [   empty     ; empty ; empty            ; node?:(op){${+}} ; empty; node?:(op){${\sin}}  ]
-    ; [ node?:(inp) {${y}} ; empty ; node?:(op) {${\times}} ; empty; empty; empty      ; node?:(op){${\times}}; empty; node?:(inp) {${w}} ]
+    [ [ node?:[inp; named `x`] {${x}} ]
+    ; [ empty     ; empty ; empty            
+      ; node?:[op; named `+`]{${+}} ; empty
+      ; node?:[op; named `sin`]{${\sin}}
+      ]
+    ; [ node?:[inp; named `y`] {${y}} ; empty 
+      ; node?:[op; named `square`] {${\times}} ; empty; empty; empty      
+      ; node?:[op; named `mul`]{${\times}}; empty
+      ; node?:[inp; named `w`] {${w}} 
+      ]
     ; []
-    ; [ node?:(inp) {${z}} ; empty ; node?:(op) {${e^{\bullet}}} ]
+    ; [ node?:[inp; named `z`] {${z}} ; empty 
+      ; node?:[op; named `exp`] {${e^{\bullet}}} 
+      ]
     ];}
 end
 

@@ -7,8 +7,11 @@
 @require: base/string
 @require: base/list-ext
 @require: base/option-ext
+@require: base/fn
+@require: base/tuple
 @require: Color
 
+@import: utils
 @import: dlist
 @import: algorithms
 
@@ -19,28 +22,42 @@ type direction
   | Center
 type shape = Plain | Circle | Rect
 type node-style = (|
-  shape: shape; fill-color: color; stroke-color: color;
-  padding: length
+  shape: shape;
+  fill-color: color;
+  stroke-color: color;
+  padding: length;
+  name: string option;
 |)
 type config = (|unit-length: length; default-node-style : node-style|)
-type position = Coord of point | Relative of direction * string
+type matrix-config = (|
+  unit-length: length;
+  matrix-name: string option;
+  default-node-style : node-style;
+|)
+type position = Absolute of point | Relative of direction * string
 
 type matrix-node = (|name : string option; shape : shape;|)
 
 module TikZyFi : sig
   type node
+  type element
+  val matrix: (node list) list -> element
+  val node-at: (node-style -> node-style) ?-> position -> inline-text -> element
+  val arrow: position -> position -> element
   val empty: node
-  val node: (node-style -> node-style) ?-> inline-text -> node
+  val node: (node-style -> node-style) list ?-> inline-text -> node
   val fc: color -> node-style -> node-style
   val lc: color -> node-style -> node-style
+  val named: string -> node-style -> node-style
   val circle: node-style -> node-style
   val rect: node-style -> node-style
   val plain: node-style -> node-style
   val default: config
+  val default-matrix: matrix-config
   val default-node-style: node-style
   type env
   % val dfs: env -> ((string list) list) option
-  direct \matrix: [config?; (node list) list] inline-cmd
+  direct \matrix: [matrix-config?; (node list) list] inline-cmd
 end = struct
   open Gr
   open Algorithms
@@ -50,11 +67,14 @@ end = struct
       let (w, h, d) = get-natural-metrics inl
       in (|width = w; height = h; depth = d|)
 
-  let default-node-style = 
+  let default-node-style: node-style = 
     (|shape = Plain; padding = 5pt
     ; stroke-color = Color.black
     ; fill-color = Color.white
+    ; name = None
     |)
+
+  let named name = fun opt -> (|opt with name = Some(name)|)
 
   let len-ord = Ord.make 
         (fun x y -> (if x <' y
@@ -111,7 +131,22 @@ end = struct
   let empty-style: node-style = (|default-node-style with padding=0pt; shape=Plain|)
   type node = Node of (|style : node-style -> node-style; body: inline-text|)
   let empty = Node (|style = Fn.const empty-style; body = {}|)
-  let node ?:styler body = Node (|style = Option.unwrap-or Fn.id styler; body = body|)
+  let node ?:styler body = Node (|style = Option.map-or Fn.id Utils.apps styler; body = body|)
+  type raw-node = (|position: position; style: node-style; body: inline-text|)
+
+  type element 
+    = Matrix of (node list) list
+    | ANode of raw-node
+    | Arrow of position * position
+
+  let matrix rows = Matrix rows
+  let node-at ?:styler position body = 
+        ANode 
+          (|position = position
+          ; style = Option.unwrap-or Fn.id styler default-node-style
+          ; body = body
+          |)
+  let arrow from to = Arrow (from, to)
 
   let pads-of style = (style#padding, style#padding, style#padding, style#padding)
 
@@ -148,19 +183,7 @@ end = struct
        | None  -> (0pt, 0pt)
        | Some(deg) -> (r *' cos deg, r *' sin deg)
 
-  let to-geometric-node-with l f style ib = 
-    let ext = extent-of ib in 
-    let node = inline-frame-outer (pads-of style) 
-          (fun pt w h d ->
-            (let shape = f style pt w h d
-            in [ stroke 1pt style#stroke-color shape 
-              ; fill style#fill-color shape 
-              ]
-            )
-          )
-          ib
-    in let geometry =(|locator = l ext|)
-    in (node, geometry)
+  let to-geometric-node-with l ib = (|locator = l (extent-of ib )|)
 
   let draw-node-shape-with f style = 
       inline-frame-outer (pads-of style) 
@@ -191,15 +214,29 @@ end = struct
     )
 
   let draw-node ctx cfg (Node node) =
-        let style = node#style cfg#default-node-style in
-        let it = node#body in 
-        let pads = (style#padding, style#padding, style#padding, style#padding) 
-        in match style#shape with
-                | Plain -> read-inline ctx it
-                | Rect -> rectify style (read-inline ctx it)
-                | Circle -> circled style (read-inline ctx it)
+    let style = node#style cfg#default-node-style in
+    let it = node#body in 
+    let pads = (style#padding, style#padding, style#padding, style#padding) 
+    in match style#shape with
+            | Plain -> read-inline ctx it
+            | Rect -> rectify style (read-inline ctx it)
+            | Circle -> circled style (read-inline ctx it)
 
-  let node-at (xstart, ystart) ib =
+  let process-node ctx cfg (Node node) =
+    let style = node#style cfg#default-node-style in
+    let it = node#body in 
+    let pads = (style#padding, style#padding, style#padding, style#padding)  in
+    let node = match style#shape with
+        | Plain   -> read-inline ctx it
+        | Rect    -> rectify style (read-inline ctx it)
+        | Circle  -> circled style (read-inline ctx it)
+    in let loc = match style#shape with
+        | Plain   -> to-geometric-node-with locate-plain node
+        | Rect    -> to-geometric-node-with locate-rect node
+        | Circle  -> to-geometric-node-with locate-circle node
+    in (node, (style, loc))
+
+  let draw-node-at (xstart, ystart) ib =
     (let ext = extent-of ib
       in let center-x = xstart -' ext#width *' 0.5
       in let center-y = ystart
@@ -207,11 +244,14 @@ end = struct
       in draw-text center ib
     )
 
+  let pair-app app app2 = fun (l, r) (l1, r1) -> (app l l1, app2 r r1)
+
   let place-matrix-nodes ctx cfg xss =
     let dx = cfg#unit-length in
     let dy = cfg#unit-length in
-    let ibs = List.map (List.map (draw-node ctx cfg) ) (List.reverse xss) in
-    let extents: (extent list) list = List.map (List.map extent-of) ibs
+    let ibs = List.map (List.map (process-node ctx cfg)) (List.reverse xss) in
+    let extents: (extent list) list = 
+          List.map (List.map (Fn.compose extent-of Pair.fst)) ibs
     in let xoffs: length list = 
           prescan-left
             (fun off w -> off +' dx +' w)
@@ -237,23 +277,45 @@ end = struct
               )
               extents
             )
-    in let ents = 
-          fold-zipi DList.empty DList.append 
-              (fun yn ystart row ->
-                fold-zipi DList.empty DList.append 
-                  (fun xn xstart ib ->
-                    DList.singleton (node-at (xstart, ystart) ib)
+    in let (ents, dic-dl) = 
+          fold-zipi 
+            (DList.empty, DList.empty) (pair-app DList.append DList.append)
+            (fun yn ystart ->
+              fold-zipi 
+                (DList.empty, DList.empty) (pair-app DList.append DList.append)
+                (fun xn xstart (ib, (style, loc)) ->
+                  (
+                    let nodes = DList.singleton (draw-node-at (xstart, ystart) ib)
+                    in let dic = match (style#name, cfg#matrix-name) with
+                        | (Some(name), _) -> DList.singleton (name, loc)
+                        | (None, Some(mat)) -> 
+                            DList.singleton 
+                              (mat ^ `-` ^ arabic xn ^ `-` ^ arabic yn, loc)
+                        | _ -> DList.empty
+                    in (nodes, dic)
                   )
-                  xoffs
-                  row
-              )
-              yoffs
-              ibs
-    in DList.to-list ents
+                )
+                xoffs
+            )
+            yoffs
+            ibs
+    in let dic = TreeMap.of-list String.ord (DList.to-list dic-dl)
+    in (DList.to-list ents, dic)
+
+  let make-diagram ctx paths = []
+  let as-matrix-config: config -> matrix-config = fun cfg ->
+      (|default-node-style = cfg#default-node-style
+      ; unit-length = cfg#unit-length
+      ; matrix-name = None
+      |)
+  let default-matrix = as-matrix-config default
+
+  
 
   let-inline ctx \matrix ?:cfg0 xss =
-    let cfg = Option.unwrap-or default cfg0 in
-    render-graphics (place-matrix-nodes ctx cfg xss)
+    let cfg = Option.unwrap-or (as-matrix-config default) cfg0
+    in let (grs, dic) = place-matrix-nodes ctx cfg xss
+    in render-graphics grs
 
   type env = string node TreeMap.t
   % let target-of (Node node) =
