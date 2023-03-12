@@ -55,7 +55,7 @@ in document '<
       }
     >
 
-    +frame?:(2){連鎖律}<
+    +frame{連鎖律}<
       +listing{
         * 皆さんお馴染の基本公式
           \gather?:(AZMathEquation.notag)(${
@@ -209,12 +209,22 @@ in document '<
 
     +frame?:(8){Reverse-Mode概説（説明は\cite[`岡谷:2022`];を参考にした）}<
       +listing{
-        * 計算グラフをつくって、最後から手繰っていく
+        * 計算グラフをつくって，最後から手繰っていく
           \eqn?:(AZMathEquation.notag)(${f(x,y,z) = \sin(x + y^2) e^z});
         }
 
       +centering{ 
         \diag1;
+      }
+    >
+
+    +frame{テープに記録していく}<
+      +listing{
+        * 一番メジャーなやりかた（Wengert Tape や Wengert List などと呼ばれる）
+        * 式が出て来た順にテープに変数や部分式を記録していく
+        * 最後までいったら先程手繰ってノードの上に書いたような係数を，受け取り先のテープに書き込む
+        * 全部終わったら適宜読み出して結果を返す
+        * 実装の正当性・気にすべき点が職人芸
       }
     >
 
@@ -307,9 +317,9 @@ in document '<
         * ${(\text!{入力次元}) \ll (\text!{出力次元})} のときは Forward-Mode が効率的
         * ${(\text!{入力次元}) \gg (\text!{出力次元})} のときは Reverse-Mode が効率的
           ** 深層学習で\emph{誤差逆伝播法}と呼ばれているもの
-          ** 何万次元の入力から決まるスカラー値の損失関数を最適化するのに使われる
         * Reverse-Mode は往復する必要があるので実装が複雑，複数の手法がある
           ** 本講演では目についたものについて説明した
+          ** Krawiec et al.\cite[`Krawiec:2022`];の説明が数学的にも厳密で，実装の導出方法がわかりやすいのでおすすめ
       }
     >
     +frame-nofooter{参考文献}<

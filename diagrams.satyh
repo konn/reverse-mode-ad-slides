@@ -47,8 +47,8 @@ let-inline \diag1 =
     ; delta(north-of `exp`){\phantom(from 4){${\sin(x + y^2) \cdot 1}}}
     ; delta(north-of `+`){\phantom(from 5){${e^z \cos(x + y^2)}}}
     ; delta(north-of `z`){\phantom(from 5){${\sin(x + y^2) e^z}}}
-    ; delta(north-of `x`){\phantom(from 6){${e^z \cdot 1 \cdot \cos(x + y^2)}}}
-    ; delta?:(2cm)(east-of `square`){
+    ; delta(north-of `x`){\phantom(from 6){${e^z \cdot \cos(x + y^2)}}}
+    ; delta?:(1.5cm)(east-of `square`){
         \phantom(from 6){${e^z \cos(x + y^2)}}
       }
     ; delta(north-of `y`){
