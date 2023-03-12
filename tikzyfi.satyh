@@ -8,6 +8,7 @@
 @require: base/list-ext
 @require: base/option-ext
 @require: base/fn
+@require: base/random
 @require: base/tuple
 @require: Color
 
@@ -41,7 +42,7 @@ type matrix-node = (|name : string option; shape : shape;|)
 module TikZyFi : sig
   type node
   type element
-  val matrix: (node list) list -> element
+  val matrix: string ?-> (node list) list -> element
   val node-at: (node-style -> node-style) ?-> position -> inline-text -> element
   val arrow: position -> position -> element
   val empty: node
@@ -55,11 +56,11 @@ module TikZyFi : sig
   val default: config
   val default-matrix: matrix-config
   val default-node-style: node-style
-  type env
-  % val dfs: env -> ((string list) list) option
   direct \matrix: [matrix-config?; (node list) list] inline-cmd
+  direct \tikzy: [config?; element list] inline-cmd
 end = struct
   open Gr
+  open Random
   open Algorithms
 
   type extent = (|width : length; height: length; depth: length|)
@@ -128,19 +129,19 @@ end = struct
   let empty = Node (|style = Fn.const empty-style; body = {}|)
   let node ?:styler body = Node (|style = Option.map-or Fn.id Utils.apps styler; body = body|)
   type 't on-node = (|position: position; style: node-style; body: 't|)
-  type raw-node = inline-text on-node
+  type raw-node = (|position: position; style: node-style -> node-style; body: inline-text|)
   type abs-box-node = (|position: point; style: node-style; body: inline-boxes|)
 
   type element 
-    = Matrix of (node list) list
+    = Matrix of string option * (node list) list
     | ANode of raw-node
     | Arrow of position * position
 
-  let matrix rows = Matrix rows
+  let matrix ?:name rows = Matrix (name, rows)
   let node-at ?:styler position body = 
         ANode 
           (|position = position
-          ; style = Option.unwrap-or Fn.id styler default-node-style
+          ; style = Option.unwrap-or Fn.id styler
           ; body = body
           |)
   let arrow from to = Arrow (from, to)
@@ -217,7 +218,7 @@ end = struct
     | Rect    -> to-geometric-node-with locate-rect
     | Circle  -> to-geometric-node-with locate-circle
 
-  let process-node ctx cfg (Node node) =
+  let process-node-raw ctx cfg node =
     let style = node#style cfg#default-node-style in
     let it = node#body in 
     let pads = (style#padding, style#padding, style#padding, style#padding)  in
@@ -226,6 +227,8 @@ end = struct
         | Rect    -> rectify style (read-inline ctx it)
         | Circle  -> circled style (read-inline ctx it)
     in (node, style)
+
+  let process-node ctx cfg (Node node) = process-node-raw ctx cfg node
 
   let calc-center (xstart, ystart) ib =
     let ext = extent-of ib
@@ -333,29 +336,44 @@ end = struct
             )
           )
 
-  let-inline ctx \matrix ?:cfg0 xss =
-    let cfg = Option.unwrap-or default-matrix cfg0
-    in let ini-nodes = place-matrix-nodes ctx cfg xss  
+  let elem-to-node ctx cfg key elt =
+      match elt with
+      | Matrix (mname, rows) -> 
+          place-matrix-nodes ctx
+            (as-matrix-config (Option.unwrap-or key mname) cfg)
+            rows
+      | ANode raw ->
+          (let (node, style) = process-node-raw ctx cfg raw
+          in let style0 = raw#style cfg#default-node-style
+          in let name = Option.unwrap-or key style0#name 
+          in let final = (|position = raw#position; style = style; body = node|)
+          in TreeMap.of-list String.ord [(name, final)]
+          )
+      | Arrow(src, tgt) -> panic `Not implemented`
+
+  let make-tikzy ctx cfg elems =
+    let uuid = `#!tikz-` ^ arabic (random())
+    in let ini-nodes = fold-mapi TreeMap.empty (union String.ord) 
+            (fun n -> elem-to-node ctx cfg (uuid ^ `@` ^ arabic n)
+            )
+            elems
     in let sorted: (string * raw-node) list = concat (Option.expect `Cycle detected!` (dfs ini-nodes))
     in let grs = 
         List.map (fun (_, node) -> node#body)
           (TreeMap.to-list
             (List.fold-left
               (resolve-raw-node ctx cfg)
-              (TreeMap.of-list String.ord [])
+              TreeMap.empty
               sorted
             )
           )
     in render-graphics grs
 
-  type env = string node TreeMap.t
-  % let target-of (Node node) =
-  %       Option.and-then 
-  %         (fun pos -> 
-  %           (match pos with
-  %           | Relative (_, p) ->  Some(p)
-  %           | _ -> None
-  %           )
-  %         ) node#position
-  % let dfs = topsort String.ord target-of
+  let-inline ctx \matrix ?:cfg0 xss =
+    let cfg = Option.unwrap-or default-matrix cfg0
+    in make-tikzy ctx cfg [matrix ?:(`mat`) xss]
+
+  let-inline ctx \tikzy ?:cfg0 elems =
+    let cfg = Option.unwrap-or default cfg0
+    in make-tikzy ctx cfg elems
 end

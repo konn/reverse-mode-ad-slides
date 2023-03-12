@@ -31,6 +31,7 @@ module Algorithms : sig
         'a list -> 'b list -> 'c list -> 'w
   val map-accum-left : ('s -> 'a -> ('s * 'b)) -> 's -> 'a list -> 's * 'b list
   val concat: ('a list) list -> 'a list
+  val union: 'k Ord.t -> 'k 'v TreeMap.t -> 'k 'v TreeMap.t -> 'k 'v TreeMap.t
 end = struct
   let concat xss = List.fold-right List.append [] xss
   let incr ord toEdge (ident, mpos) inDegs  =
@@ -59,11 +60,11 @@ end = struct
             | vis (x :: xs) acc =
                 let (vis2, xreach) = go1 vis x
                 in go vis2 xs (xreach :: acc)
-      in go (TreeSet.of-list ord []) starts []
+      in go TreeSet.empty starts []
   let topsort ord toEdge graph = 
     let inDegs = 
           List.fold 
-              (TreeMap.of-list ord [])
+              TreeMap.empty
               (incr ord toEdge) 
               (TreeMap.to-list graph) in
     let lones0 = 
@@ -170,4 +171,16 @@ end = struct
           let (s3, ys) = go s2 xs in
           (s3, y :: ys)
     in go
+  
+  % FIXME: Treats assymmetry
+  let union ord l r =
+    if TreeMap.size l < TreeMap.size r
+    then List.fold-left 
+            (fun dic (k, v) -> TreeMap.insert ord k v dic)
+            r
+            (TreeMap.to-list r)
+    else List.fold-left 
+          (fun dic (k, v) -> TreeMap.insert ord k v dic)
+          l
+          (TreeMap.to-list r)
 end
