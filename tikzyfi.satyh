@@ -43,7 +43,7 @@ module TikZyFi : sig
   type node
   type element
   val matrix: string ?-> (node list) list -> element
-  val node-at: (node-style -> node-style) ?-> position -> inline-text -> element
+  val node-at: (node-style -> node-style) list ?-> position -> inline-text -> element
   val arrow: position -> position -> element
   val empty: node
   val node: (node-style -> node-style) list ?-> inline-text -> node
@@ -141,7 +141,7 @@ end = struct
   let node-at ?:styler position body = 
         ANode 
           (|position = position
-          ; style = Option.unwrap-or Fn.id styler
+          ; style = Option.map-or Fn.id Utils.apps styler
           ; body = body
           |)
   let arrow from to = Arrow (from, to)
@@ -304,7 +304,10 @@ end = struct
 
   let draw-abs-box-node bnode = draw-text bnode#position bnode#body
 
-  let resolve-raw-node ctx cfg poss (name, raw)  =
+  let center-of ((x1 ,y1), (x2, y2)) = 
+      ((x1 +' x2) *' 0.5, (y1 +' y2) *' 0.5)
+
+  let resolve-raw-node ctx cfg (name, raw) poss =
     let ext = extent-of raw#body
     in let center = match raw#position with
         | Absolute pt -> pt
@@ -312,29 +315,32 @@ end = struct
           ( let targ = 
                   Option.expect (`No target node: ` ^ parent)
                     (TreeMap.get String.ord parent poss)
-            in let (dx0, dy0) = 
+            in let center = center-of (get-graphics-bbox targ#body)
+            in let endpt = 
                   locator-of targ#style#shape targ#body dir
+            in let (dx0, dy0) = Utils.sub-pt endpt center
             in let theta = atan2 (dy0 /' 1pt) (dx0 /' 1pt)
             in let dxy = 
                   Utils.add-pt (dx0, dy0) 
                     ( cfg#unit-length *' cos theta
                     , cfg#unit-length *' sin theta
                     )
-            in Utils.add-pt targ#position dxy
+            in Utils.add-pt endpt dxy
           )
     in let position = calc-center center raw#body
     in let graphic = draw-text position raw#body
     in let node2 = (|position = position; body = graphic; style = raw#style|)
+    in let (x, y) = position
+    in let () = display-message (`Placing: ` ^ name ^ ` to (` ^ show-float (x /' 1pt) ^ `, ` ^ show-float (y/'1pt) ^ `)` )
+
     in TreeMap.insert String.ord name node2 poss
 
-  let dfs = 
-        topsort String.ord 
-          (fun b -> 
-            (match b#position with
-              | Absolute _ -> None
-              | Relative (_, targ) -> Some(targ)
-            )
-          )
+  let toEdge b =
+    match b#position with
+      | Absolute _ -> None
+      | Relative (_, targ) -> Some(targ)
+
+  let dfs = topsort String.ord toEdge
 
   let elem-to-node ctx cfg key elt =
       match elt with
@@ -351,17 +357,31 @@ end = struct
           )
       | Arrow(src, tgt) -> panic `Not implemented`
 
+  let display env =
+      List.fold-right
+        (fun (k, v) shown -> 
+            `(` ^ k ^ `, ` 
+              ^ Option.map-or `None` (fun s -> `Some(` ^ s ^ `)`) v 
+              ^ `); ` ^ shown)
+        String.empty
+        (List.map (fun (nam, b) -> (nam, toEdge b)) (TreeMap.to-list env))
+
   let make-tikzy ctx cfg elems =
     let uuid = `#!tikz-` ^ arabic (random())
     in let ini-nodes = fold-mapi TreeMap.empty (union String.ord) 
-            (fun n -> elem-to-node ctx cfg (uuid ^ `@` ^ arabic n)
-            )
+            (fun n -> elem-to-node ctx cfg (uuid ^ `@` ^ arabic n))
             elems
-    in let sorted: (string * raw-node) list = concat (Option.expect `Cycle detected!` (dfs ini-nodes))
+    in let () = display-message (`Graph: ` ^ display ini-nodes)
+    in let sorted: (string * raw-node) list = 
+          concat 
+          (Option.expect 
+            (`Cycle detected! ` ^ display ini-nodes) 
+            (dfs ini-nodes)
+          )
     in let grs = 
         List.map (fun (_, node) -> node#body)
           (TreeMap.to-list
-            (List.fold-left
+            (List.fold-right
               (resolve-raw-node ctx cfg)
               TreeMap.empty
               sorted

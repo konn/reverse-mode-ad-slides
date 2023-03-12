@@ -1,33 +1,45 @@
 @import: tikzyfi
 @require: azmath/azmath
 @require: Color
+@require: latexcmds/latexcmds
 @import: utils
+@import: mymath
 
 module Diagrams : sig
   val \diag1: [] inline-cmd
 end = struct
 open TikZyFi
+open LatexCmds
 open Utils
-let cfg = (|default-matrix with default-node-style = default-node-style |> circle|)
+open MyMath
+let cfg = (|default with 
+  default-node-style = default-node-style |> circle;
+  % unit-length = 1cm;
+|)
 let op = rect
 let inp = apps [circle; fc (Color.gray 0.75)]
 let-inline \diag1 = 
-  {\matrix?:(cfg)
-    [ [ node?:[inp; named `x`] {${x}} ]
-    ; [ empty     ; empty ; empty            
-      ; node?:[op; named `+`]{${+}} ; empty
-      ; node?:[op; named `sin`]{${\sin}}
+  { \tikzy?:(cfg)
+    [ matrix 
+      [ [ node?:[inp; named `x`] {${x}} ]
+      ; [ empty     ; empty ; empty            
+        ; node?:[op; named `+`]{${+}} ; empty
+        ; node?:[op; named `sin`]{${\sin}}
+        ]
+      ; [ node?:[inp; named `y`] {${y}} ; empty 
+        ; node?:[op; named `square`] {${\times}} ; empty; empty; empty      
+        ; node?:[op; named `mul`]{${\times}}; empty
+        ; node?:[inp; named `w`] {${w}} 
+        ]
+      ; []
+      ; [ node?:[inp; named `z`] {${z}} ; empty 
+        ; node?:[op; named `exp`] {${e^{\bullet}}} 
+        ]
       ]
-    ; [ node?:[inp; named `y`] {${y}} ; empty 
-      ; node?:[op; named `square`] {${\times}} ; empty; empty; empty      
-      ; node?:[op; named `mul`]{${\times}}; empty
-      ; node?:[inp; named `w`] {${w}} 
-      ]
-    ; []
-    ; [ node?:[inp; named `z`] {${z}} ; empty 
-      ; node?:[op; named `exp`] {${e^{\bullet}}} 
-      ]
-    ];}
+    ; node-at?:[plain;named `dw`](Relative(NorthEast, `w`))
+        {\fontsize(15pt){${\pp{w}{w} = 1}}}
+    ];
+  }
 end
 
 open Diagrams
