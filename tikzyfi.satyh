@@ -31,7 +31,7 @@ type node-style = (|
 type config = (|unit-length: length; default-node-style : node-style|)
 type matrix-config = (|
   unit-length: length;
-  matrix-name: string option;
+  matrix-name: string;
   default-node-style : node-style;
 |)
 type position = Absolute of point | Relative of direction * string
@@ -120,11 +120,6 @@ end = struct
 
   type dx = length
   type dy = length
-  % Maps direction to the coordinate relative to the node origin.
-  % TODO: Use envelopes (ala diagrams in Haskell) for more fine-grained tracing
-  type locator = direction -> dx * dy
-
-  type node-geometry = (|locator: locator|)
 
   let plain = fun style -> (|style with shape = Plain|)
 
@@ -132,7 +127,9 @@ end = struct
   type node = Node of (|style : node-style -> node-style; body: inline-text|)
   let empty = Node (|style = Fn.const empty-style; body = {}|)
   let node ?:styler body = Node (|style = Option.map-or Fn.id Utils.apps styler; body = body|)
-  type raw-node = (|position: position; style: node-style; body: inline-text|)
+  type 't on-node = (|position: position; style: node-style; body: 't|)
+  type raw-node = inline-text on-node
+  type abs-box-node = (|position: point; style: node-style; body: inline-boxes|)
 
   type element 
     = Matrix of (node list) list
@@ -150,24 +147,23 @@ end = struct
 
   let pads-of style = (style#padding, style#padding, style#padding, style#padding)
 
-  let locate-rect extent dir =
-      let h = extent#height +' extent#depth in
-      let w = extent#width in
+  let locate-rect ((x0, y0), (x1, y1)) dir =
         match dir with
-        | Center -> (0pt, 0pt)
-        | North  -> (0pt, extent#height)
-        | South -> (0pt, 0pt -' extent#depth)
-        | East  -> (w *' 0.5, 0pt)
-        | West  -> (w *' (-0.5), 0pt)
-        | NorthEast -> (w *' 0.5, h *' 0.5)
-        | NorthWest -> (w *' (-0.5), h *' 0.5)
-        | SouthEast -> (w *' 0.5, h *' (-0.5))
-        | SouthWest -> (w *' (-0.5), h *' (-0.5))
+        | Center -> ((x0 +' x1) *' 0.5, (y0 +' y1) *' 0.5)
+        | North  -> ((x0 +' x1) *' 0.5, y1)
+        | South -> ((x0 +' x1) *' 0.5, y0)
+        | East  -> (x1, (y0 +' y1) *' 0.5)
+        | West  -> (x0, (y0 +' y1) *' 0.5)
+        | NorthEast -> (x1, y1)
+        | NorthWest -> (x0, y1)
+        | SouthEast -> (x1, y0)
+        | SouthWest -> (x0, y0)
 
   let locate-plain = locate-rect
-  let locate-circle extent dir =
-    let r = extent#width *' 0.5 in
-    let pi = 3.141592653589793238462
+  let locate-circle ((x0, y0), (x1, y1)) dir =
+    let r = (x1 -' x0) *' 0.5
+    in let center = ((x0 +' x1) *' 0.5, (y0 +' y1) *' 0.5)
+    in let pi = 3.141592653589793238462
     in let deg = 
         match dir with
         | Center -> None
@@ -180,10 +176,9 @@ end = struct
         | SouthEast -> Some(pi /. (-4.0))
         | SouthWest -> Some(5.0 *. pi /. 4.0)
     in match deg with
-       | None  -> (0pt, 0pt)
-       | Some(deg) -> (r *' cos deg, r *' sin deg)
+       | None  -> center
+       | Some(deg) -> Utils.add-pt center (r *' cos deg, r *' sin deg)
 
-  let to-geometric-node-with l ib = (|locator = l (extent-of ib )|)
 
   let draw-node-shape-with f style = 
       inline-frame-outer (pads-of style) 
@@ -213,14 +208,14 @@ end = struct
       )
     )
 
-  let draw-node ctx cfg (Node node) =
-    let style = node#style cfg#default-node-style in
-    let it = node#body in 
-    let pads = (style#padding, style#padding, style#padding, style#padding) 
-    in match style#shape with
-            | Plain -> read-inline ctx it
-            | Rect -> rectify style (read-inline ctx it)
-            | Circle -> circled style (read-inline ctx it)
+  let to-geometric-node-with l gr = l (get-graphics-bbox gr)
+
+  % In the absolute coordinate system
+  let locator-of shape =
+    match shape with
+    | Plain   -> to-geometric-node-with locate-plain
+    | Rect    -> to-geometric-node-with locate-rect
+    | Circle  -> to-geometric-node-with locate-circle
 
   let process-node ctx cfg (Node node) =
     let style = node#style cfg#default-node-style in
@@ -230,19 +225,13 @@ end = struct
         | Plain   -> read-inline ctx it
         | Rect    -> rectify style (read-inline ctx it)
         | Circle  -> circled style (read-inline ctx it)
-    in let loc = match style#shape with
-        | Plain   -> to-geometric-node-with locate-plain node
-        | Rect    -> to-geometric-node-with locate-rect node
-        | Circle  -> to-geometric-node-with locate-circle node
-    in (node, (style, loc))
+    in (node, style)
 
-  let draw-node-at (xstart, ystart) ib =
-    (let ext = extent-of ib
+  let calc-center (xstart, ystart) ib =
+    let ext = extent-of ib
       in let center-x = xstart -' ext#width *' 0.5
       in let center-y = ystart
-      in let center = (center-x, center-y)
-      in draw-text center ib
-    )
+      in (center-x, center-y)
 
   let pair-app app app2 = fun (l, r) (l1, r1) -> (app l l1, app2 r r1)
 
@@ -277,44 +266,86 @@ end = struct
               )
               extents
             )
-    in let (ents, dic-dl) = 
+    in let dic-dl = 
           fold-zipi 
-            (DList.empty, DList.empty) (pair-app DList.append DList.append)
+            DList.empty DList.append
             (fun yn ystart ->
               fold-zipi 
-                (DList.empty, DList.empty) (pair-app DList.append DList.append)
-                (fun xn xstart (ib, (style, loc)) ->
-                  (
-                    let nodes = DList.singleton (draw-node-at (xstart, ystart) ib)
-                    in let dic = match (style#name, cfg#matrix-name) with
-                        | (Some(name), _) -> DList.singleton (name, loc)
-                        | (None, Some(mat)) -> 
-                            DList.singleton 
-                              (mat ^ `-` ^ arabic xn ^ `-` ^ arabic yn, loc)
-                        | _ -> DList.empty
-                    in (nodes, dic)
+                DList.empty DList.append
+                (fun xn xstart (ib, style) ->
+                  ( let name =
+                       match style#name with
+                        | Some(name) -> name
+                        | None -> cfg#matrix-name ^ `-` ^ arabic xn ^ `-` ^ arabic yn
+                    in let node = 
+                          (|position = Absolute (calc-center (xstart, ystart) ib)
+                          ; body = ib
+                          ; style = style
+                          |)
+                    in DList.singleton (name, node)
                   )
                 )
                 xoffs
             )
             yoffs
             ibs
-    in let dic = TreeMap.of-list String.ord (DList.to-list dic-dl)
-    in (DList.to-list ents, dic)
+    in TreeMap.of-list String.ord (DList.to-list dic-dl)
 
   let make-diagram ctx paths = []
-  let as-matrix-config: config -> matrix-config = fun cfg ->
+  let as-matrix-config: string -> config -> matrix-config = fun nam cfg ->
       (|default-node-style = cfg#default-node-style
       ; unit-length = cfg#unit-length
-      ; matrix-name = None
+      ; matrix-name = nam
       |)
-  let default-matrix = as-matrix-config default
+  let default-matrix = as-matrix-config `mat` default
 
-  
+  let draw-abs-box-node bnode = draw-text bnode#position bnode#body
+
+  let resolve-raw-node ctx cfg poss (name, raw)  =
+    let ext = extent-of raw#body
+    in let center = match raw#position with
+        | Absolute pt -> pt
+        | Relative(dir, parent) -> 
+          ( let targ = 
+                  Option.expect (`No target node: ` ^ parent)
+                    (TreeMap.get String.ord parent poss)
+            in let (dx0, dy0) = 
+                  locator-of targ#style#shape targ#body dir
+            in let theta = atan2 (dy0 /' 1pt) (dx0 /' 1pt)
+            in let dxy = 
+                  Utils.add-pt (dx0, dy0) 
+                    ( cfg#unit-length *' cos theta
+                    , cfg#unit-length *' sin theta
+                    )
+            in Utils.add-pt targ#position dxy
+          )
+    in let position = calc-center center raw#body
+    in let graphic = draw-text position raw#body
+    in let node2 = (|position = position; body = graphic; style = raw#style|)
+    in TreeMap.insert String.ord name node2 poss
+
+  let dfs = 
+        topsort String.ord 
+          (fun b -> 
+            (match b#position with
+              | Absolute _ -> None
+              | Relative (_, targ) -> Some(targ)
+            )
+          )
 
   let-inline ctx \matrix ?:cfg0 xss =
-    let cfg = Option.unwrap-or (as-matrix-config default) cfg0
-    in let (grs, dic) = place-matrix-nodes ctx cfg xss
+    let cfg = Option.unwrap-or default-matrix cfg0
+    in let ini-nodes = place-matrix-nodes ctx cfg xss  
+    in let sorted: (string * raw-node) list = concat (Option.expect `Cycle detected!` (dfs ini-nodes))
+    in let grs = 
+        List.map (fun (_, node) -> node#body)
+          (TreeMap.to-list
+            (List.fold-left
+              (resolve-raw-node ctx cfg)
+              (TreeMap.of-list String.ord [])
+              sorted
+            )
+          )
     in render-graphics grs
 
   type env = string node TreeMap.t

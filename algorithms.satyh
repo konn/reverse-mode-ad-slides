@@ -10,7 +10,7 @@ module Algorithms : sig
   type 'a 'b these
   val topsort: 
       'k Ord.t -> ('v -> 'k option) -> 
-      'k 'v TreeMap.t -> (('k list) list) option
+      'k 'v TreeMap.t -> ((('k * 'v) list) list) option
   val align-with: ('a 'b these -> 'c) -> 'a list -> 'b list -> 'c list
   val zip-with: ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
   val zip-with-3: ('a -> 'b -> 'c -> 'd) -> 'a list -> 'b list -> 'c list -> 'd list
@@ -29,26 +29,30 @@ module Algorithms : sig
         'w -> ('w -> 'w -> 'w) -> 
         (int -> 'a -> 'b -> 'c -> 'w) -> 
         'a list -> 'b list -> 'c list -> 'w
+  val map-accum-left : ('s -> 'a -> ('s * 'b)) -> 's -> 'a list -> 's * 'b list
+  val concat: ('a list) list -> 'a list
 end = struct
+  let concat xss = List.fold-right List.append [] xss
   let incr ord toEdge (ident, mpos) inDegs  =
     match toEdge mpos with
     | Some(targ) -> 
         (match TreeMap.get ord targ inDegs with
             | None -> TreeMap.insert ord targ 1 inDegs
             | Some(n) -> TreeMap.insert ord targ (n + 1) inDegs)
-    | _ -> inDegs
+    | _ -> TreeMap.insert ord ident 0 inDegs
   let dfs2 ord toEdge starts graph =
       let-rec
         go1 vis x = 
           if TreeSet.mem ord vis x
           then (vis, [])
           else 
-            let vis2 = TreeSet.insert ord x vis
-            in match Option.and-then toEdge (TreeMap.get ord x graph) with
+            let vis2 = TreeSet.insert ord x vis in
+            let source = Option.expect `Node not found` (TreeMap.get ord x graph) in
+            match toEdge source with
             | Some(targ) -> 
                 let (vis3, ys) = go1 vis2 targ
-                in (vis3, x :: ys)
-            | None -> (vis2, [x])
+                in (vis3, (x, source) :: ys)
+            | None -> (vis2, [(x, source)])
       in let-rec
           go 
             | vis [] acc = acc
@@ -157,4 +161,13 @@ end = struct
       | n z0 (x :: xs) = 
           let z = f n z0 x in z0 :: go (n + 1) z xs
   in go 0
+
+  let map-accum-left f =
+    let-rec go
+      | s [] = (s, [])
+      | s (x :: xs) = 
+          let (s2, y) = f s x in 
+          let (s3, ys) = go s2 xs in
+          (s3, y :: ys)
+    in go
 end
