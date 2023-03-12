@@ -7,9 +7,13 @@ module Utils : sig
   val apps : ('a -> 'a) list -> 'a -> 'a
   val add-pt : point -> point -> point
   val sub-pt : point -> point -> point
+  val bimap : ('a -> 'c) -> ('b -> 'd) -> 'a * 'b -> 'c * 'd
+  val biap : ('a -> 'b -> 'c) -> ('d -> 'e -> 'f) -> 'a * 'd -> 'b * 'e -> 'c * 'f
 end = struct
   open Algorithms
   let apps xs = fold-map Fn.id Fn.compose Fn.id xs
   let add-pt (x1, y1) (x2, y2) = (x1 +' x2, y1 +' y2)
   let sub-pt (x1, y1) (x2, y2) = (x1 -' x2, y1 -' y2)
+  let bimap f g (x, y) = (f x, g y)
+  let biap f g (x, y) (z, w) = (f x z, g y w)
 end

@@ -38,6 +38,7 @@ let-inline \diag1 =
       ]
     ; node-at?:[plain;named `dw`](Relative(NorthEast, `w`))
         {\fontsize(15pt){${\pp{w}{w} = 1}}}
+    ; arrow (Relative(East, `x`)) (Relative(NorthWest, `+`))
     ];
   }
 end

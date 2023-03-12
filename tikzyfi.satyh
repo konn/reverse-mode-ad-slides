@@ -307,31 +307,36 @@ end = struct
   let center-of ((x1 ,y1), (x2, y2)) = 
       ((x1 +' x2) *' 0.5, (y1 +' y2) *' 0.5)
 
+  let dir-of cfg dir targ =
+    let center = center-of (get-graphics-bbox targ#body)
+    in let endpt = 
+          locator-of targ#style#shape targ#body dir
+    in let (dx0, dy0) = Utils.sub-pt endpt center
+    in let theta = atan2 (dy0 /' 1pt) (dx0 /' 1pt)
+    in let dxy = 
+          Utils.add-pt (dx0, dy0) 
+            ( cfg#unit-length *' cos theta
+            , cfg#unit-length *' sin theta
+            )
+    in Utils.add-pt endpt dxy
+
+  let get-dir-of cfg poss pos =
+      match pos with
+      | Absolute pt -> pt
+      | Relative (dir, parent) ->
+        ( let targ = 
+            Option.expect (`No target node: ` ^ parent)
+              (TreeMap.get String.ord parent poss)
+          in dir-of cfg dir targ
+          )
+
   let resolve-raw-node ctx cfg (name, raw) poss =
     let ext = extent-of raw#body
-    in let center = match raw#position with
-        | Absolute pt -> pt
-        | Relative(dir, parent) -> 
-          ( let targ = 
-                  Option.expect (`No target node: ` ^ parent)
-                    (TreeMap.get String.ord parent poss)
-            in let center = center-of (get-graphics-bbox targ#body)
-            in let endpt = 
-                  locator-of targ#style#shape targ#body dir
-            in let (dx0, dy0) = Utils.sub-pt endpt center
-            in let theta = atan2 (dy0 /' 1pt) (dx0 /' 1pt)
-            in let dxy = 
-                  Utils.add-pt (dx0, dy0) 
-                    ( cfg#unit-length *' cos theta
-                    , cfg#unit-length *' sin theta
-                    )
-            in Utils.add-pt endpt dxy
-          )
+    in let center = get-dir-of cfg poss raw#position
     in let position = calc-center center raw#body
     in let graphic = draw-text position raw#body
     in let node2 = (|position = position; body = graphic; style = raw#style|)
     in let (x, y) = position
-    in let () = display-message (`Placing: ` ^ name ^ ` to (` ^ show-float (x /' 1pt) ^ `, ` ^ show-float (y/'1pt) ^ `)` )
 
     in TreeMap.insert String.ord name node2 poss
 
@@ -342,20 +347,22 @@ end = struct
 
   let dfs = topsort String.ord toEdge
 
-  let elem-to-node ctx cfg key elt =
+  let process-elem ctx cfg key elt =
       match elt with
       | Matrix (mname, rows) -> 
-          place-matrix-nodes ctx
+          (place-matrix-nodes ctx
             (as-matrix-config (Option.unwrap-or key mname) cfg)
             rows
+          , DList.empty
+          )
       | ANode raw ->
           (let (node, style) = process-node-raw ctx cfg raw
           in let style0 = raw#style cfg#default-node-style
           in let name = Option.unwrap-or key style0#name 
           in let final = (|position = raw#position; style = style; body = node|)
-          in TreeMap.of-list String.ord [(name, final)]
+          in (TreeMap.of-list String.ord [(name, final)], DList.empty)
           )
-      | Arrow(src, tgt) -> panic `Not implemented`
+      | Arrow(src, tgt) -> (TreeMap.empty, DList.singleton (src, tgt))
 
   let display env =
       List.fold-right
@@ -368,26 +375,22 @@ end = struct
 
   let make-tikzy ctx cfg elems =
     let uuid = `#!tikz-` ^ arabic (random())
-    in let ini-nodes = fold-mapi TreeMap.empty (union String.ord) 
-            (fun n -> elem-to-node ctx cfg (uuid ^ `@` ^ arabic n))
+    in let (ini-nodes, arrows) = 
+          fold-mapi 
+            (TreeMap.empty, DList.empty) 
+            (Utils.biap (union String.ord) DList.append) 
+            (fun n -> process-elem ctx cfg (uuid ^ `@` ^ arabic n))
             elems
-    in let () = display-message (`Graph: ` ^ display ini-nodes)
     in let sorted: (string * raw-node) list = 
           concat 
           (Option.expect 
             (`Cycle detected! ` ^ display ini-nodes) 
             (dfs ini-nodes)
           )
-    in let grs = 
-        List.map (fun (_, node) -> node#body)
-          (TreeMap.to-list
-            (List.fold-right
-              (resolve-raw-node ctx cfg)
-              TreeMap.empty
-              sorted
-            )
-          )
-    in render-graphics grs
+    in let node-dic = 
+          List.fold-right (resolve-raw-node ctx cfg) TreeMap.empty sorted
+    in let nodes = List.map (fun (_, node) -> node#body) (TreeMap.to-list node-dic)
+    in render-graphics nodes
 
   let-inline ctx \matrix ?:cfg0 xss =
     let cfg = Option.unwrap-or default-matrix cfg0
